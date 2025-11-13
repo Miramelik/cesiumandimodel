@@ -1,6 +1,6 @@
 .splitter {
   height: 6px;
   background: #ccc;
-  cursor: row-resize;
+  cursor: col-resize;
   z-index: 1000;
 }

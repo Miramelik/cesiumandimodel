@@ -4,6 +4,9 @@ import "cesium/Build/Cesium/Widgets/widgets.css";
 
 import "./style.css";
 import { initCesiumViewer } from "./CesiumLoader";
+import { loadIonTileset } from "./TilesetComponent";
+
+
 
 export const CesiumViewer: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -17,6 +20,10 @@ export const CesiumViewer: React.FC = () => {
 
       const viewerInstance = await initCesiumViewer(containerRef.current);
       setViewer(viewerInstance);
+
+
+      const assetId= 3476879;
+      await loadIonTileset (viewerInstance, assetId);
 
     };
 

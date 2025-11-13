@@ -1,15 +1,16 @@
 import React, { useRef } from "react";
 import "./ResizableSplitter.css";
+import { useContainerWidth } from "@itwin/itwinui-react/cjs/utils";
 
 const ResizableSplitter: React.FC<{
-  topId: string;
-  bottomId: string;
-}> = ({ topId, bottomId }) => {
+  leftId: string;
+  rightId: string;
+}> = ({ leftId, rightId }) => {
   const isResizing = useRef(false);
 
   const onMouseDown = () => {
     isResizing.current = true;
-    document.body.style.cursor = "row-resize";
+    document.body.style.cursor = "col-resize";
   };
 
   const onMouseUp = () => {
@@ -20,15 +21,15 @@ const ResizableSplitter: React.FC<{
   const onMouseMove = (e: MouseEvent) => {
     if (!isResizing.current) return;
 
-    const containerHeight = window.innerHeight;
-    const y = e.clientY;
+    const containerWidth = window.innerWidth;
+    const x = e.clientX;
 
-    const top = document.getElementById(topId);
-    const bottom = document.getElementById(bottomId);
+    const left = document.getElementById(leftId);
+    const right = document.getElementById(rightId);
 
-    if (top && bottom) {
-      top.style.height = `${y}px`;
-      bottom.style.height = `${containerHeight - y}px`;
+    if (left && right) {
+      left.style.height = `${x}px`;
+      right.style.height = `${containerWidth - x}px`;
     }
   };
 

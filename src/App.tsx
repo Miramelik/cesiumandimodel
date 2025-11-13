@@ -163,8 +163,8 @@ const App: React.FC = () => {
 
   return (
     <div className="app-root">
-      {/* iModel Viewer (Top) */}
-    <div id = "iModelViewer"style={{ height: "50%", minHeight: "300px" }}>
+      {/* iModel Viewer (left) */}
+    <div id = "iModelViewer"style={{ width: "50%", minWidth: "300px", height:"100%" }}>
       {!accessToken && (
         <FillCentered>
           <div className="signin-content">
@@ -248,11 +248,11 @@ const App: React.FC = () => {
       />
     </div>
     {/* DRAG BAR */}
-    <ResizableSplitter topId="iModelViewer" bottomId="cesiumContainer" />
+    <ResizableSplitter leftId="iModelViewer" rightId="cesiumContainer" />
 
 
       {/* Cesium Viewer (Bottom) */}
-           <div id= "cesiumContainer"style={{ height: "50%", minHeight: "300px" }}>
+           <div id= "cesiumContainer"style={{ width: "50%", minWidth: "300px", height: "100%" }}>
               <CesiumViewer />
           </div>
           <div id="infoPopup" style = {{
