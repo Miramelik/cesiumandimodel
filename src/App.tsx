@@ -47,6 +47,9 @@ import { Auth } from "./Auth";
 import { history } from "./history";
 import { unifiedSelectionStorage } from "./selectionStorage";
 import { log } from "console";
+import { Visualization } from "./components/utils/Visualization";
+
+
 
 const App: React.FC = () => {
   const [iModelId, setIModelId] = useState(process.env.IMJS_IMODEL_ID);
@@ -145,8 +148,12 @@ const App: React.FC = () => {
     await MeasureTools.startup();
     MeasurementActionToolbar.setDefaultActionProvider();
     console.log("iModelApp initialized");
+    
+    
     IModelApp.viewManager.onViewOpen.addOnce((vp: ScreenViewport) => {
       console.log(`View opened: ${vp.iModel.name}`);
+      Visualization.toggleHouseExterior(vp, false);
+      Visualization.changeBackground(vp, "lightblue");
   }, []);
   }, []);
 

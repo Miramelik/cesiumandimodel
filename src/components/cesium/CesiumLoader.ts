@@ -2,6 +2,9 @@ import { Ion, Clock, ClockViewModel, Viewer, CesiumTerrainProvider, Cartesian3, 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import CesiumNavigation from "cesium-navigation-es6";
 
+// >>> ADD THIS LINE: <<<
+(window as any).CESIUM_BASE_URL = `${process.env.PUBLIC_URL || ""}/cesium/`;
+
 export const initCesiumViewer = async (container: HTMLDivElement): Promise <Viewer> => {
   Ion.defaultAccessToken = process.env.REACT_APP_ION_TOKEN!;
   const terrain = await CesiumTerrainProvider.fromIonAssetId(1);
