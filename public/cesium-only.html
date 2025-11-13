@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Cesium Fullscreen Viewer</title>
+
+  <!-- CesiumJS -->
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.116/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.116/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+
+  <style>
+    html, body, #cesiumContainer {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: sans-serif;
+    }
+
+    #infoBox {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: white;
+      padding: 10px;
+      border-radius: 6px;
+      z-index: 999;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body>
+  <div id="cesiumContainer"></div>
+  <div id="infoBox">
+    <button onclick="colorByHeight()">Color by Height</button>
+    <button onclick="highlightByStoreys()">Storeys</button>
+    <button onclick="colorByEnergyDemand()">Energy</button>
+    <button onclick="clearFilters()">Clear</button>
+  </div>
+
+  <script>
+    Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5ZWI0M2YxNS0wNzcyLTQ4YjAtYWEzOC0wYmRhOGRkYzBlYmIiLCJpZCI6Mjk5NDY0LCJpYXQiOjE3NDYzOTEwNTN9.isnJLq0fPyNvZ9QJtCMaDnFB9hTXOyT928Rsj1QX354';
+
+
+    const viewer = new Cesium.Viewer("cesiumContainer", {
+      terrain: Cesium.Terrain.fromWorldTerrain(),
+      timeline: true,
+      animation: true,
+    });
+
+    viewer.scene.globe.depthTestAgainstTerrain = true;
+
+    let buildingTileset;
+    let photoTileset;
+
+    async function loadTilesets() {
+      buildingTileset = await Cesium.Cesium3DTileset.fromIonAssetId(3541567); // Replace as needed
+      viewer.scene.primitives.add(buildingTileset);
+      viewer.zoomTo(buildingTileset);
+    }
+
+    async function loadDSM() {
+      photoTileset = await Cesium.Cesium3DTileset.fromIonAssetId(2275207);
+      viewer.scene.primitives.add(photoTileset);
+    }
+
+    function colorByHeight() {
+      if (!buildingTileset) return;
+      buildingTileset.style = new Cesium.Cesium3DTileStyle({
+        defines: { h: "Number(${feature['bldg:measuredheight']})" },
+        color: {
+          conditions: [
+            ["${h} > 50", "color('maroon', 0.9)"],
+            ["${h} > 30", "color('darkorange', 0.8)"],
+            ["${h} > 15", "color('yellow', 0.6)"],
+            ["true", "color('lightblue', 0.6)"]
+          ]
+        }
+      });
+    }
+
+    function highlightByStoreys() {
+      if (!buildingTileset) return;
+      buildingTileset.style = new Cesium.Cesium3DTileStyle({
+        defines: { s: "Number(${feature['bldg:storeysaboveground']})" },
+        color: {
+          conditions: [
+            ["${s} >= 10", "color('purple', 0.9)"],
+            ["${s} >= 6", "color('red', 0.8)"],
+            ["${s} >= 3", "color('orange', 0.6)"],
+            ["true", "color('green', 0.4)"]
+          ]
+        }
+      });
+    }
+
+    function colorByEnergyDemand() {
+      if (!buildingTileset) return;
+      buildingTileset.style = new Cesium.Cesium3DTileStyle({
+        defines: {
+          energy: "Number(${feature['Volume']}) * 15"
+        },
+        color: {
+          conditions: [
+            ["${energy} >= 30000", "color('red', 0.9)"],
+            ["${energy} >= 15000", "color('orange', 0.8)"],
+            ["${energy} > 0", "color('lightblue', 0.6)"],
+            ["true", "color('gray', 0.3)"]
+          ]
+        }
+      });
+    }
+
+    function clearFilters() {
+      if (buildingTileset) {
+        buildingTileset.style = undefined;
+      }
+    }
+
+    loadTilesets();
+    // Optionally call: loadDSM();
+  </script>
+</body>
+</html>

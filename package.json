@@ -41,12 +41,15 @@
     "@types/node": "^22.19.1",
     "@types/react": "^18.3.26",
     "@types/react-dom": "^18.3.7",
+    "cesium": "^1.135.0",
+    "cesium-navigation-es6": "^3.0.9",
     "history": "^5.3.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-redux": "^9.2.0",
     "redux": "^5.0.1",
-    "typescript": "~5.6.2"
+    "typescript": "~5.6.2",
+    "vite-plugin-static-copy": "^3.1.4"
   },
   "scripts": {
     "start": "react-scripts --max_old_space_size=4096 start",

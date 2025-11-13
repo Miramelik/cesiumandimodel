@@ -5,12 +5,14 @@
 
 import "./index.scss";
 
+
 import React from "react";
 import { createRoot } from "react-dom/client";
 
 import App from "./App";
 import { Auth } from "./Auth";
 import * as serviceWorker from "./serviceWorker";
+import { Ion } from "cesium";
 
 if (!process.env.IMJS_AUTH_CLIENT_CLIENT_ID) {
   throw new Error(
@@ -27,6 +29,11 @@ if (!process.env.IMJS_AUTH_CLIENT_REDIRECT_URI) {
     "Please add a valid redirect URI to the .env file and restart the application. See the README for more information."
   );
 }
+
+(window as any).CESIUM_BASE_URL = "/cesium";
+
+Ion.defaultAccessToken = "4066099"; 
+
 
 Auth.initialize({
   scope: process.env.IMJS_AUTH_CLIENT_SCOPES,

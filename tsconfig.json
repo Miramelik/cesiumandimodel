@@ -18,7 +18,10 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+
+    "types": ["vite/client", "cesium"]
+    
   },
   "include": [
     "src"
