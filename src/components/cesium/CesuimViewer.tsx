@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Viewer , ScreenSpaceEventHandler, ScreenSpaceEventType} from "cesium";
+import { flyToTilesetCustomView } from "./CameraUtils";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
 import "./style.css";
@@ -51,40 +52,20 @@ export const CesiumViewer: React.FC = () => {
        });
        
        setLayers(loadLayers.filter(Boolean));
+       
 
        // Zoom to IFC Model 1 on startup
        const ifc1 = loadLayers.find(l => l?.name === "IFC Model 1");
        if (ifc1) {
-        viewerInstance.camera.flyToBoundingSphere(
-          ifc1.tileset.boundingSphere,
-          { duration: 1.5 }
-        );
+        await ifc1.tileset.readyPromise;  // IMPORTANT
+        flyToTilesetCustomView(viewerInstance, ifc1.tileset, 1.5);
+       
       }
-
-
-
-
-    // // 3. Shapefile of Osm buildings (converted to GeoJSON in ion)
-    // await loadIonTileset(viewerInstance, 4088254, "GEOJSON");
-
-    // // 4. Shapefile of Osm landuses (converted to GeoJSON in ion)
-    // await loadIonTileset(viewerInstance, 4088271, "GEOJSON");
-
-    //  // 5. Shapefile of Osm Railway (converted to GeoJSON in ion)
-    // await loadIonTileset(viewerInstance, 4088283, "GEOJSON");
-
-    //   // 6. Shapefile of Osm Roadway (converted to GeoJSON in ion)
-    // await loadIonTileset(viewerInstance, 4088295, "GEOJSON");
-
-    //  // 7. Shapefile of Osm public transport (converted to GeoJSON in ion)
-    // await loadIonTileset(viewerInstance, 4088344, "GEOJSON");
   };
 
        //void init();
        init();
 
-       //cleaning up when the component is removed
-    //return () => viewer?.destroy();
      return () => viewerRef.current?.destroy();
   }, []);
 
@@ -195,10 +176,7 @@ export const CesiumViewer: React.FC = () => {
             <span
             style={{cursor:"pointer"}}         
             onClick={() => {
-            viewerRef.current?.camera.flyToBoundingSphere(
-              layer.tileset.boundingSphere,
-              { duration: 1.2 }
-            );
+            flyToTilesetCustomView(viewerRef.current!, layer.tileset);
           }}
         >
           🔍 {layer.name}

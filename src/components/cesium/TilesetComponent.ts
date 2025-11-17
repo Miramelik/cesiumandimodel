@@ -1,5 +1,4 @@
 import { Cesium3DTileset, Viewer } from "cesium";
-import { flyToTilesetCenter } from "./CameraUtils";
 
 export const loadIonTileset = async (
     viewer:any,
@@ -30,14 +29,8 @@ export const loadIonTileset = async (
                 tileset,
                 visible:true,
             };
-        }
-     
-            // viewer.homeButton.viewModel.command.beforeExecute.addEventListener((e:any)=>{
-            //      e.cancel = true;
-            //      viewer.camera.flyToBoundingSphere(tileset.boundingSphere);
-            // }          
-                           
-        
+        }    
+              
     
     return null;    
     }
