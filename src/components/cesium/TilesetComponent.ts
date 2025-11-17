@@ -1,4 +1,4 @@
-import { Cesium3DTileset, GeoJsonDataSource, IonResource, BoundingSphere } from "cesium";
+import { Cesium3DTileset, GeoJsonDataSource, IonResource, BoundingSphere, ClassificationType} from "cesium";
 
 export const loadIonTileset = async (
     viewer:any,
@@ -42,6 +42,22 @@ export const loadIonTileset = async (
           });
 
          await viewer.dataSources.add(datasource);
+
+           // --- IMPORTANT PART: don't paint on 3D Tiles ---
+         datasource.entities.values.forEach((entity: any) => {
+           if (entity.polygon) {
+             entity.polygon.classificationType = ClassificationType.TERRAIN; // ← key line
+           }
+
+             // POLYLINES
+           if (entity.polyline) {
+             entity.polyline.clampToGround = true;
+             entity.polyline.classificationType = ClassificationType.TERRAIN;
+             entity.polyline.depthFailMaterial = entity.polyline.material;
+           }
+
+           
+         });
 
            // Compute a bounding sphere manually
         const positions: any[] = [];

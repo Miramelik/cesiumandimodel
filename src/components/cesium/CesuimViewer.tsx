@@ -202,13 +202,22 @@ export const CesiumViewer: React.FC = () => {
           >
             {/*layer name = clicking zooms to layer */}
             <span
-            style={{cursor:"pointer"}}         
+            style={{ cursor: "pointer" }}
             onClick={() => {
-            flyToTilesetCustomView(viewerRef.current!, layer);
-          }}
-        >
-          🔍 {layer.name}
-            </span>
+              const viewer = viewerRef.current;
+              if (!viewer) return;
+              // For 3D Tiles, use custom angled camera
+              if (layer.type === "3DTILES" && layer.boundingSphere) {
+                flyToTilesetCustomView(viewer, layer);
+              }
+              // For GeoJSON, use viewer.flyTo on the datasource
+              if (layer.type === "GEOJSON" && layer.datasource) {
+                viewer.flyTo(layer.datasource, { duration: 1.5 });
+              }
+            }}
+         >
+           🔍 {layer.name}
+         </span>
 
             {/*Visibility toggle*/}
             <input 
