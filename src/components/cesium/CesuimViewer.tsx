@@ -36,6 +36,18 @@ export const CesiumViewer: React.FC = () => {
        loadLayers.push(await loadIonTileset(viewerInstance, 4066099, "3DTILES", "IFC Model 5"));
        loadLayers.push(await loadIonTileset(viewerInstance,4046995 , "3DTILES", "IFC Model 6"));
 
+
+       //2. GeoJSON
+
+       loadLayers.push(await loadIonTileset(viewerInstance, 4088254, "GEOJSON", "OSM Building"));
+       loadLayers.push(await loadIonTileset(viewerInstance, 4088271, "GEOJSON", "OSM Landuse"));
+       loadLayers.push(await loadIonTileset(viewerInstance, 4088283, "GEOJSON", "OSM Railway"));
+       loadLayers.push(await loadIonTileset(viewerInstance, 4088295, "GEOJSON", "OSM Roadway"));
+       loadLayers.push(await loadIonTileset(viewerInstance, 4088344, "GEOJSON", "OSM Public Transport"));
+
+
+
+       //3. City GML
        loadLayers.push(await loadIonTileset(viewerInstance, 4078829, "3DTILES", "CITY GML LoD2"));
 
        
@@ -43,12 +55,23 @@ export const CesiumViewer: React.FC = () => {
        loadLayers.forEach((layer)=>{
         //Default:off
         layer.visible=false;
-        layer.tileset.show=false;
+        //layer.tileset.show=false;
 
-        if (layer.name==="IFC Model 1" || layer.name ==="CITY GML LoD2") {
-          layer.visible = true;
-          layer.tileset.show=true;
+        if (layer.type === "3DTILES" && layer.tileset) {
+          layer.tileset.show = false;
         }
+        if (layer.type === "GEOJSON" && layer.datasource) {
+          layer.datasource.show = false;
+        }
+
+
+
+        if (layer.name==="IFC Model 1" || layer.name ==="CITY GML LoD2") 
+          {
+          layer.visible = true;
+          if (layer.tileset) layer.tileset.show = true;
+          if (layer.datasource) layer.datasource.show = true;
+          }
        });
        
        setLayers(loadLayers.filter(Boolean));
@@ -56,7 +79,7 @@ export const CesiumViewer: React.FC = () => {
 
        // Zoom to IFC Model 1 on startup
        const ifc1 = loadLayers.find(l => l?.name === "IFC Model 1");
-       if (ifc1) {
+       if (ifc1 && ifc1.tileset) {
         await ifc1.tileset.readyPromise;  // IMPORTANT
         flyToTilesetCustomView(viewerInstance, ifc1.tileset, 1.5);
        
@@ -79,22 +102,27 @@ export const CesiumViewer: React.FC = () => {
       clickedLayer.visible=!clickedLayer.visible;
 
       //apply visibility yo the cesium
-      if (clickedLayer.type==="3DTILES"){
-        const tileset=clickedLayer.tileset;
-        tileset.show=clickedLayer.visible;
+      if (clickedLayer.type==="3DTILES" && clickedLayer.tileset){
+        clickedLayer.tileset.show = clickedLayer.visible;
+      }
 
-         //If IFC Model 6 become visible
-          if (clickedLayer.name === "IFC Model 6" && clickedLayer.visible) {
-            updated.forEach((layer)=> {
-              if (
-                layer.name.startsWith("IFC Model")&&
-                layer.name !=="IFC Model 6"
-              ){
-                layer.visible=false;
-                layer.tileset.show=false;
-               }
-               });
-          }  
+      if (clickedLayer.type === "GEOJSON" && clickedLayer.datasource) {
+        clickedLayer.datasource.show = clickedLayer.visible;
+      }
+
+
+     //If IFC Model 6 become visible
+      if (clickedLayer.name === "IFC Model 6" && clickedLayer.visible) {
+        updated.forEach((layer)=> {
+          if (
+            layer.name.startsWith("IFC Model")&&
+            layer.name !=="IFC Model 6"
+          ){
+            layer.visible=false;
+            layer.tileset.show=false;
+           }
+           });
+      }  
 
           //if any other IFC model turned on
           if (
@@ -110,7 +138,7 @@ export const CesiumViewer: React.FC = () => {
               }
             });
           }
-        }   
+
         viewerRef.current?.scene.requestRender();        
         
         return updated;
@@ -176,7 +204,7 @@ export const CesiumViewer: React.FC = () => {
             <span
             style={{cursor:"pointer"}}         
             onClick={() => {
-            flyToTilesetCustomView(viewerRef.current!, layer.tileset);
+            flyToTilesetCustomView(viewerRef.current!, layer);
           }}
         >
           🔍 {layer.name}

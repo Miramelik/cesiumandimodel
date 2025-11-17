@@ -1,4 +1,4 @@
-import { Cesium3DTileset, Viewer } from "cesium";
+import { Cesium3DTileset, GeoJsonDataSource, IonResource, BoundingSphere } from "cesium";
 
 export const loadIonTileset = async (
     viewer:any,
@@ -27,11 +27,47 @@ export const loadIonTileset = async (
                 name,
                 type,
                 tileset,
+                datasource:null,
+                boundingSphere:tileset.boundingSphere,
                 visible:true,
             };
         }    
-              
-    
+        // ---------------------
+        // GEOJSON (from shapefiles)
+        // ---------------------
+        if (type === "GEOJSON") {
+          const resource = await IonResource.fromAssetId(assetId);
+          const datasource = await GeoJsonDataSource.load(resource, {
+            clampToGround:true,
+          });
+
+         await viewer.dataSources.add(datasource);
+
+           // Compute a bounding sphere manually
+        const positions: any[] = [];
+        datasource.entities.values.forEach((e: any) => {
+          const p = e.position?.getValue(viewer.clock.currentTime);
+          if (p) positions.push(p);
+        });
+
+         const boundingSphere = 
+         positions.length > 0 ?
+           BoundingSphere.fromPoints(positions) : null;
+         
+
+
+
+          return {
+            id: assetId,
+            name,
+            type,
+            tileset: null,
+            datasource,
+            boundingSphere,
+            visible: true,
+          };
+        }
+        
     return null;    
     }
     catch (err){
