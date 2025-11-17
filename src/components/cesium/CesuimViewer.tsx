@@ -10,7 +10,8 @@ import { loadIonTileset } from "./TilesetComponent";
 
 export const CesiumViewer: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [viewer, setViewer] = useState<Viewer | null>(null);
+   const viewerRef = useRef<Viewer | null>(null);
+   const [layers,setLayers]=useState<any[]>([])
    
 
 
@@ -18,25 +19,202 @@ export const CesiumViewer: React.FC = () => {
     const init = async () => {
       if (!containerRef.current) return;
 
+      // creating cesium viewer
       const viewerInstance = await initCesiumViewer(containerRef.current);
-      setViewer(viewerInstance);
+      viewerRef.current = viewerInstance;
+       //viewerRef.current = await initCesiumViewer(containerRef.current);
+
+       const loadLayers:any[]=[];
 
 
-      const assetId= 3476879;
-      await loadIonTileset (viewerInstance, assetId);
+       // 1.  IFC/3D 
+       loadLayers.push(await loadIonTileset(viewerInstance, 3476879, "3DTILES", "IFC Model 1"));
+       loadLayers.push(await loadIonTileset(viewerInstance, 4066080, "3DTILES", "IFC Model 2"));
+       loadLayers.push(await loadIonTileset(viewerInstance, 4066077, "3DTILES", "IFC Model 3"));
+       loadLayers.push(await loadIonTileset(viewerInstance, 4065957, "3DTILES", "IFC Model 4"));
+       loadLayers.push(await loadIonTileset(viewerInstance, 4066099, "3DTILES", "IFC Model 5"));
+       loadLayers.push(await loadIonTileset(viewerInstance,4046995 , "3DTILES", "IFC Model 6"));
 
-    };
+       loadLayers.push(await loadIonTileset(viewerInstance, 4078829, "3DTILES", "CITY GML LoD2"));
 
-       void init();
-    return () => viewer?.destroy();
+       
+       //Set initial visiblity state
+       loadLayers.forEach((layer)=>{
+        //Default:off
+        layer.visible=false;
+        layer.tileset.show=false;
+
+        if (layer.name==="IFC Model 1" || layer.name ==="CITY GML LoD2") {
+          layer.visible = true;
+          layer.tileset.show=true;
+        }
+       });
+       
+       setLayers(loadLayers.filter(Boolean));
+
+       // Zoom to IFC Model 1 on startup
+       const ifc1 = loadLayers.find(l => l?.name === "IFC Model 1");
+       if (ifc1) {
+        viewerInstance.camera.flyToBoundingSphere(
+          ifc1.tileset.boundingSphere,
+          { duration: 1.5 }
+        );
+      }
+
+
+
+
+    // // 3. Shapefile of Osm buildings (converted to GeoJSON in ion)
+    // await loadIonTileset(viewerInstance, 4088254, "GEOJSON");
+
+    // // 4. Shapefile of Osm landuses (converted to GeoJSON in ion)
+    // await loadIonTileset(viewerInstance, 4088271, "GEOJSON");
+
+    //  // 5. Shapefile of Osm Railway (converted to GeoJSON in ion)
+    // await loadIonTileset(viewerInstance, 4088283, "GEOJSON");
+
+    //   // 6. Shapefile of Osm Roadway (converted to GeoJSON in ion)
+    // await loadIonTileset(viewerInstance, 4088295, "GEOJSON");
+
+    //  // 7. Shapefile of Osm public transport (converted to GeoJSON in ion)
+    // await loadIonTileset(viewerInstance, 4088344, "GEOJSON");
+  };
+
+       //void init();
+       init();
+
+       //cleaning up when the component is removed
+    //return () => viewer?.destroy();
+     return () => viewerRef.current?.destroy();
   }, []);
 
+
+  const toggleLayerVisibility = (index:number)=>{
+    setLayers((prev)=>{
+      const updated =[...prev];
+      const clickedLayer = updated[index];
+
+      //Toggle visiblity
+      clickedLayer.visible=!clickedLayer.visible;
+
+      //apply visibility yo the cesium
+      if (clickedLayer.type==="3DTILES"){
+        const tileset=clickedLayer.tileset;
+        tileset.show=clickedLayer.visible;
+
+         //If IFC Model 6 become visible
+          if (clickedLayer.name === "IFC Model 6" && clickedLayer.visible) {
+            updated.forEach((layer)=> {
+              if (
+                layer.name.startsWith("IFC Model")&&
+                layer.name !=="IFC Model 6"
+              ){
+                layer.visible=false;
+                layer.tileset.show=false;
+               }
+               });
+          }  
+
+          //if any other IFC model turned on
+          if (
+            clickedLayer.name.startsWith ("IFC Model") &&
+            clickedLayer.name!=="IFC Model 6" &&
+            clickedLayer.visible
+          )
+          {
+            updated.forEach((layer)=>{
+              if (layer.name==="IFC Model 6"){
+                layer.visible= false;
+                layer.tileset.show=false;
+              }
+            });
+          }
+        }   
+        viewerRef.current?.scene.requestRender();        
+        
+        return updated;
+
+    });
+  }
+
+
    return (
-    <div style={{ display: "flex",flex:1, height: "100vh" , position: "relative" }}>
-    
-      <div ref={containerRef} id="cesiumContainer" style={{ flex:1, height:"100%", width: "100%" }} />
-      
-  
+  <div
+    style={{
+      position: "relative",
+      width: "100%",
+      height: "100vh",
+      overflow: "hidden",
+    }}
+  >
+
+    {/* --- CESIUM VIEWER CONTAINER --- */}
+    <div
+      ref={containerRef}
+      id="cesiumContainer"
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+      }}
+    />
+
+    {/* --- FLOATING LAYERS PANEL --- */}
+    <div
+      style={{
+        position: "absolute",
+        top: "20px",
+        right: "20px",
+        padding: "10px",
+        width: "220px",
+        background: "white",
+        borderRadius: "6px",
+        boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
+        zIndex: 1000,
+      }}
+    >
+      <h4 style={{ margin: "0 0 10px 0" }}>Layers</h4>
+
+      {layers.map((layer, index) => (
+        <div
+          key={layer.id}
+          style={{
+            padding: "6px 8px",
+            marginBottom: "6px",
+            borderRadius: "4px",
+            cursor: "pointer",
+            background: "#f5f5f5",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+          >
+            {/*layer name = clicking zooms to layer */}
+            <span
+            style={{cursor:"pointer"}}         
+            onClick={() => {
+            viewerRef.current?.camera.flyToBoundingSphere(
+              layer.tileset.boundingSphere,
+              { duration: 1.2 }
+            );
+          }}
+        >
+          🔍 {layer.name}
+            </span>
+
+            {/*Visibility toggle*/}
+            <input 
+            type="checkbox"
+            checked={layer.visible}
+            onChange={()=>toggleLayerVisibility(index)}
+            />
+        </div>
+      ))}
     </div>
-  );
+
+  </div>
+);
+
 };

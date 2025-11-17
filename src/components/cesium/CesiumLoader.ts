@@ -27,7 +27,7 @@ export const initCesiumViewer = async (container: HTMLDivElement): Promise <View
     shouldAnimate: true,
   });
   new CesiumNavigation(viewer, {
-    defaultResetView: Rectangle.fromDegrees(11.5, 48.1, 11.6, 48.2),
+    //defaultResetView: Rectangle.fromDegrees(11.5, 48.1, 11.6, 48.2),
     enableCompass: true,
     enableZoomControls: true,
    

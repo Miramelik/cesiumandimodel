@@ -26,7 +26,10 @@ export class Visualization {
     //List of categories for the house exterior.
 
     const categoriesToHide =[
-        "'IFCClass_Default'"
+        "'IFCClass_Default'",
+        "'IFCClass_IFC_Footprints'",
+        "'IFCClass_A__x002D__GENM__x002D________x002D__OTLN'", 
+        "'IFCClass_Q__x002D__SPCQ__x002D________x002D__OTLN'"
     ]
 
 

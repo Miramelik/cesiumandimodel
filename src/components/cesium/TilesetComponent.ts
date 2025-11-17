@@ -1,20 +1,50 @@
-import { Cesium3DTileset } from "cesium";
+import { Cesium3DTileset, Viewer } from "cesium";
+import { flyToTilesetCenter } from "./CameraUtils";
 
-export async function loadIonTileset(viewer:any, assetId:number) {
+export const loadIonTileset = async (
+    viewer:any,
+    assetId:number,
+     type: "3DTILES" | "GEOJSON",
+     name:string    
+    ) => {
     if (!viewer) return null;
 
     try {
-        const tileset= await Cesium3DTileset.fromIonAssetId(assetId);
+    // ---------------------------
+    // 3D TILES (CityGML, IFC...)
+    // ---------------------------
 
-        viewer.scene.primitives.add(tileset);
+        if (type==="3DTILES") {
+            const tileset= await Cesium3DTileset.fromIonAssetId(assetId);
+            viewer.scene.primitives.add(tileset);
 
-        await viewer.zoomTo (tileset);
+            await (tileset as any).readyPromise;
+            //await flyToTilesetCenter(viewer, tileset);
+            
+            //update home button / reset view to tileset
 
-        return tileset;
+            return {
+                id:assetId,
+                name,
+                type,
+                tileset,
+                visible:true,
+            };
+        }
+     
+            // viewer.homeButton.viewModel.command.beforeExecute.addEventListener((e:any)=>{
+            //      e.cancel = true;
+            //      viewer.camera.flyToBoundingSphere(tileset.boundingSphere);
+            // }          
+                           
+        
+    
+    return null;    
     }
     catch (err){
         console.error ("Failed to load 3D Tiles:", err);
-        return null;
+        return null;    
     }
-    }
+
+ };
     
