@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Viewer , ScreenSpaceEventHandler, ScreenSpaceEventType} from "cesium";
+import { Viewer , ScreenSpaceEventHandler, ScreenSpaceEventType, Cesium3DTileFeature} from "cesium";
 import { flyToTilesetCustomView } from "./CameraUtils";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
@@ -84,7 +84,62 @@ export const CesiumViewer: React.FC = () => {
         flyToTilesetCustomView(viewerInstance, ifc1.tileset, 1.5);
        
       }
-  };
+
+         // ADD CLICK HANDLER FOR PICKING
+       const handler = new ScreenSpaceEventHandler(viewerInstance.scene.canvas);
+
+       handler.setInputAction(
+         (movement: any) => {
+           const picked = viewerInstance.scene.pick(movement.position);
+
+           const popup = document.getElementById("infoPopup") as HTMLDivElement;
+           if (!popup) return;
+
+           if (!picked) {
+             popup.style.display = "none";
+             return;
+           }
+
+           // Case 1 — 3D Tiles
+            if (picked instanceof Cesium3DTileFeature) {
+            const props: any = {};
+
+            picked.getPropertyIds().forEach((id: string) => {
+              props[id] = picked.getProperty(id);
+            });
+
+            popup.style.display = "block";
+            popup.innerHTML = `
+              <b>3D Tiles Feature</b><br/>
+              <pre>${JSON.stringify(props, null, 2)}</pre>
+            `;
+
+            return;
+          }
+
+           // Case 2 — GeoJSON Entity
+           if (picked.id) {
+             const entity = picked.id;
+
+             popup.style.display = "block";
+             popup.innerHTML = `
+               <b>GeoJSON Feature</b><br/>
+               ${
+               entity.properties
+               ? `<pre>${JSON.stringify(entity.properties._propertyNames.map((n: string) => ({
+                   [n]: entity.properties[n].getValue()
+                 })), null, 2)}</pre>`
+               : "No attributes"
+               }
+             `;
+             return;
+           }
+
+           popup.style.display = "none";
+         },
+         ScreenSpaceEventType.LEFT_CLICK
+       );   
+    };
 
        //void init();
        init();
@@ -169,6 +224,24 @@ export const CesiumViewer: React.FC = () => {
         height: "100%",
       }}
     />
+
+    {/* --- INFO POPUP --- */}
+    <div
+      id="infoPopup"
+      style={{
+        position: "absolute",
+        bottom: "20px",
+        left: "20px",
+        padding: "10px",
+        background: "rgba(0,0,0,0.75)",
+        color: "white",
+        borderRadius: "6px",
+        maxWidth: "300px",
+        display: "none",
+        zIndex: 2000,
+      }}
+    ></div>
+
 
     {/* --- FLOATING LAYERS PANEL --- */}
     <div
