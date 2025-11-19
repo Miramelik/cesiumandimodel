@@ -4,52 +4,21 @@
 *--------------------------------------------------------------------------------------------*/
 
 import "./App.scss";
-import ResizableSplitter from "./components/ResizableSplitter";
-
-
-import type { IModelConnection, ScreenViewport } from "@itwin/core-frontend";
-import { FitViewTool, IModelApp, StandardViewId } from "@itwin/core-frontend";
-import { FillCentered } from "@itwin/core-react";
-import { ECSchemaRpcInterface } from "@itwin/ecschema-rpcinterface-common";
-import { ProgressLinear } from "@itwin/itwinui-react";
-import { Cesium3DTileset } from "cesium";
-import { CesiumViewer } from "./components/cesium/CesuimViewer";
-
-import {
-  MeasurementActionToolbar,
-  MeasureTools,
-  MeasureToolsUiItemsProvider,
-} from "@itwin/measure-tools-react";
-import {
-  AncestorsNavigationControls,
-  CopyPropertyTextContextMenuItem,
-  PropertyGridManager,
-  PropertyGridUiItemsProvider,
-  ShowHideNullValuesSettingsMenuItem,
-} from "@itwin/property-grid-react";
-import {
-  CategoriesTreeComponent,
-  createTreeWidget,
-  ModelsTreeComponent,
-  TreeWidget,
-} from "@itwin/tree-widget-react";
+import ResizableSplitter from "./components/layout/ResizableSplitter";
 import {
   useAccessToken,
-  Viewer,
-  ViewerContentToolsProvider,
-  ViewerNavigationToolsProvider,
-  ViewerPerformance,
-  ViewerStatusbarItemsProvider,
 } from "@itwin/web-viewer-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Auth } from "./Auth";
 import { history } from "./history";
-import { unifiedSelectionStorage } from "./selectionStorage";
-import { log } from "console";
-import { Visualization } from "./components/utils/Visualization";
 
+import { ItwinViewer} from "./components/itwin/ITwinViewer";
+import { CesiumViewer } from "./components/cesium/CesuimViewer";
 
+  /** ------------------------------------------------------
+   * 1. iTwin View IDs from ENV or URL
+   * ------------------------------------------------------*/
 
 const App: React.FC = () => {
   const [iModelId, setIModelId] = useState(process.env.IMJS_IMODEL_ID);
@@ -57,6 +26,11 @@ const App: React.FC = () => {
   const [changesetId, setChangesetId] = useState(
     process.env.IMJS_AUTH_CLIENT_CHANGESET_ID
   );
+
+
+    /** ------------------------------------------------------
+   * 2. Authentication Setup
+   * ------------------------------------------------------*/
 
   const accessToken = useAccessToken();
 
@@ -74,6 +48,12 @@ const App: React.FC = () => {
     void login();
   }, [login]);
 
+  /** ------------------------------------------------------
+   * 3. Parse incoming URL parameters
+   * ------------------------------------------------------*/
+
+
+
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has("iTwinId")) {
@@ -86,6 +66,10 @@ const App: React.FC = () => {
       setChangesetId(urlParams.get("changesetId") as string);
     }
   }, []);
+
+    /** ------------------------------------------------------
+   * 4. Update browser URL when ids change
+   * ------------------------------------------------------*/
 
   useEffect(() => {
     let url = `viewer?iTwinId=${iTwinId}`;
@@ -100,161 +84,30 @@ const App: React.FC = () => {
     history.push(url);
   }, [iTwinId, iModelId, changesetId]);
 
-  /** NOTE: This function will execute the "Fit View" tool after the iModel is loaded into the Viewer.
-   * This will provide an "optimal" view of the model. However, it will override any default views that are
-   * stored in the iModel. Delete this function and the prop that it is passed to if you prefer
-   * to honor default views when they are present instead (the Viewer will still apply a similar function to iModels that do not have a default view).
-   */
-  const viewConfiguration = useCallback((viewPort: ScreenViewport) => {
-    // default execute the fitview tool and use the iso standard view after tile trees are loaded
-    const tileTreesLoaded = () => {
-      return new Promise((resolve, reject) => {
-        const start = new Date();
-        const intvl = setInterval(() => {
-          if (viewPort.areAllTileTreesLoaded) {
-            ViewerPerformance.addMark("TilesLoaded");
-            ViewerPerformance.addMeasure(
-              "TileTreesLoaded",
-              "ViewerStarting",
-              "TilesLoaded"
-            );
-            clearInterval(intvl);
-            resolve(true);
-          }
-          const now = new Date();
-          // after 20 seconds, stop waiting and fit the view
-          if (now.getTime() - start.getTime() > 20000) {
-            reject();
-          }
-        }, 100);
-      });
-    };
 
-    tileTreesLoaded().finally(() => {
-      void IModelApp.tools.run(FitViewTool.toolId, viewPort, true, false);
-      viewPort.view.setStandardRotation(StandardViewId.Iso);
-    });
-  }, []);
-
-  const viewCreatorOptions = useMemo(
-    () => ({ viewportConfigurer: viewConfiguration }),
-    [viewConfiguration]
-  );
-
-    const onIModelAppInit = useCallback(async () => {
-    // iModel now initialized
-    await TreeWidget.initialize();
-    await PropertyGridManager.initialize();
-    await MeasureTools.startup();
-    MeasurementActionToolbar.setDefaultActionProvider();
-    console.log("iModelApp initialized");
-    
-    
-    IModelApp.viewManager.onViewOpen.addOnce((vp: ScreenViewport) => {
-      console.log(`View opened: ${vp.iModel.name}`);
-      Visualization.toggleHouseExterior(vp, false);
-      Visualization.changeBackground(vp, "lightblue");
-  }, []);
-  }, []);
-
-  const onIModelConnected = useCallback(async (iModel: IModelConnection) => {
-    console.log(`Connected to iModel: ${iModel.name}`);
-  }, []);
 
   return (
-    <div className="app-root">
-      {/* iModel Viewer (left) */}
-    <div id = "iModelViewer"style={{ width: "50%", minWidth: "300px", height:"100%" }}>
-      {!accessToken && (
-        <FillCentered>
-          <div className="signin-content">
-            <ProgressLinear indeterminate={true} labels={["Signing in..."]} />
-          </div>
-        </FillCentered>
-      )}
-      <Viewer
+    <div className="app-root" style={{ width: "100%", height: "100%" }}>
+       {/* LEFT SIDE — ITWIN VIEWER */}
+    <div id = "iModelViewer"style={{ width: "50%", minWidth: "300px", height:"100%", overflow:"hidden" }}>
+    
+      <ItwinViewer
         iTwinId={iTwinId ?? ""}
         iModelId={iModelId ?? ""}
-        changeSetId={changesetId}
+        changesetId={changesetId}
         authClient={authClient}
-        viewCreatorOptions={viewCreatorOptions}
-        enablePerformanceMonitors={true} // see description in the README (https://www.npmjs.com/package/@itwin/web-viewer-react)
-        onIModelAppInit={onIModelAppInit}
-        onIModelConnected={onIModelConnected}
-        mapLayerOptions={{
-          BingMaps: {
-            key: "key",
-            value: process.env.IMJS_BING_MAPS_KEY ?? "",
-          },
-        }}
-        backendConfiguration={{
-          defaultBackend: {
-            rpcInterfaces: [ECSchemaRpcInterface],
-          },
-        }}
-        uiProviders={[
-          new ViewerNavigationToolsProvider(),
-          new ViewerContentToolsProvider({
-            vertical: {
-              measureGroup: false,
-            },
-          }),
-          new ViewerStatusbarItemsProvider(),
-          {
-            id: "TreeWidgetUIProvider",
-            getWidgets: () => [
-              createTreeWidget({
-                trees: [
-                  {
-                    id: ModelsTreeComponent.id,
-                    getLabel: () => ModelsTreeComponent.getLabel(),
-                    render: (props) => (
-                      <ModelsTreeComponent
-                        getSchemaContext={(iModel) => iModel.schemaContext}
-                        density={props.density}
-                        selectionStorage={unifiedSelectionStorage}
-                        selectionMode={"extended"}
-                        onPerformanceMeasured={props.onPerformanceMeasured}
-                        onFeatureUsed={props.onFeatureUsed}
-                       />
-                    ),
-                  },
-                ],
-              }),
-            ],
-          },
-          new PropertyGridUiItemsProvider({
-            propertyGridProps: {
-              autoExpandChildCategories: true,
-              ancestorsNavigationControls: (props) => (
-                <AncestorsNavigationControls {...props} />
-              ),
-              contextMenuItems: [
-                (props) => <CopyPropertyTextContextMenuItem {...props} />,
-              ],
-              settingsMenuItems: [
-                (props) => (
-                  <ShowHideNullValuesSettingsMenuItem
-                    {...props}
-                    persist={true}
-                  />
-                ),
-              ],
-            },
-          }),
-          new MeasureToolsUiItemsProvider(),
-        ]}
-        selectionStorage={unifiedSelectionStorage}
+        
       />
     </div>
     {/* DRAG BAR */}
     <ResizableSplitter leftId="iModelViewer" rightId="cesiumContainer" />
 
 
-      {/* Cesium Viewer (Bottom) */}
-           <div id= "cesiumContainer"style={{ width: "50%", minWidth: "300px", height: "100%" }}>
+       {/* RIGHT SIDE — CESIUM VIEWER */}
+           <div id= "cesiumContainer"style={{ width: "50%", minWidth: "300px", height: "100%" , overflow: "hidden"}}>
               <CesiumViewer />
           </div>
+            {/* CESIUM POPUP (moved out here so it floats above everything) */}
           <div id="infoPopup" style = {{
             position: "absolute",
             backgroundColor: "white",
