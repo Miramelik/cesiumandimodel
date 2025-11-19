@@ -15,6 +15,7 @@ import { history } from "./history";
 
 import { ItwinViewer} from "./components/itwin/ITwinViewer";
 import { CesiumViewer } from "./components/cesium/CesuimViewer";
+import { ScenarioToolbar } from "./scenarios/ScenarioToolbar";
 
   /** ------------------------------------------------------
    * 1. iTwin View IDs from ENV or URL
@@ -26,6 +27,7 @@ const App: React.FC = () => {
   const [changesetId, setChangesetId] = useState(
     process.env.IMJS_AUTH_CLIENT_CHANGESET_ID
   );
+  const [currentScenario, setCurrentScenario] = useState<string>("bus");
 
 
     /** ------------------------------------------------------
@@ -87,7 +89,15 @@ const App: React.FC = () => {
 
 
   return (
-    <div className="app-root" style={{ width: "100%", height: "100%" }}>
+    <div className="app-root" style={{ width: "100%", height: "100%", position: "relative" }}>
+      {/* FLOATING SCENARIO BUTTONS */}
+       <ScenarioToolbar
+       currentScenario={currentScenario}
+        onSelect= {setCurrentScenario}
+      />
+
+
+
        {/* LEFT SIDE — ITWIN VIEWER */}
     <div id = "iModelViewer"style={{ width: "50%", minWidth: "300px", height:"100%", overflow:"hidden" }}>
     
