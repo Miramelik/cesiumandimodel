@@ -4,11 +4,10 @@
 *--------------------------------------------------------------------------------------------*/
 
 import "./App.scss";
-import ResizableSplitter from "./components/layout/ResizableSplitter";
 import {
   useAccessToken,
 } from "@itwin/web-viewer-react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 
 import { Auth } from "./Auth";
 import { history } from "./history";
@@ -53,9 +52,6 @@ const App: React.FC = () => {
   /** ------------------------------------------------------
    * 3. Parse incoming URL parameters
    * ------------------------------------------------------*/
-
-
-
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has("iTwinId")) {
@@ -92,14 +88,33 @@ const App: React.FC = () => {
     <div className="app-root" style={{ width: "100%", height: "100%", position: "relative" }}>
       {/* FLOATING SCENARIO BUTTONS */}
        <ScenarioToolbar
-       currentScenario={currentScenario}
-        onSelect= {setCurrentScenario}
+      currentScenario={currentScenario}
+      onScenarioChange= {setCurrentScenario}
       />
 
+      {/*  CESIUM VIEWER — ALWAYS VISIBLE, FULL SCREEN */}
+           <div id= "cesiumContainer"
+           style={{ width: "100%", height: "100vh" , overflow: "hidden"            
+           }}
+           >
+              <CesiumViewer currentScenario={currentScenario} />
+          </div>
 
-
-       {/* LEFT SIDE — ITWIN VIEWER */}
-    <div id = "iModelViewer"style={{ width: "50%", minWidth: "300px", height:"100%", overflow:"hidden" }}>
+      {/*  ITWIN VIEWER — ONLY VISIBLE FOR IFC SCENARIO */}
+    {currentScenario === "ifc" && ( 
+      <div 
+        id = "iModelViewer"
+        style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            width: "50%",
+            height: "100vh",
+            background: "white",
+            borderRight: "3px solid #ccc",
+            zIndex: 5000,
+          }}
+        >
     
       <ItwinViewer
         iTwinId={iTwinId ?? ""}
@@ -108,17 +123,13 @@ const App: React.FC = () => {
         authClient={authClient}
         
       />
-    </div>
-    {/* DRAG BAR */}
-    <ResizableSplitter leftId="iModelViewer" rightId="cesiumContainer" />
+    </div>  
+    )}
 
-
-       {/* RIGHT SIDE — CESIUM VIEWER */}
-           <div id= "cesiumContainer"style={{ width: "50%", minWidth: "300px", height: "100%" , overflow: "hidden"}}>
-              <CesiumViewer />
-          </div>
             {/* CESIUM POPUP (moved out here so it floats above everything) */}
-          <div id="infoPopup" style = {{
+          <div 
+          id="infoPopup" 
+          style = {{
             position: "absolute",
             backgroundColor: "white",
             border: "1px solid #ccc",
@@ -127,7 +138,8 @@ const App: React.FC = () => {
             display: "none",
             pointerEvents: "none",
             zIndex: 1000,
-          }}></div>
+          }}
+          ></div>
     </div>
   );
 };

@@ -4,12 +4,12 @@ import { SCENARIOS } from "./SCENARIOS";
 
 interface Props {
   currentScenario: string;
-  onSelect: (id: string) => void;
+  onScenarioChange: (id: string) => void;
 }
 
 export const ScenarioToolbar: React.FC<Props> = ({
   currentScenario,
-  onSelect,
+  onScenarioChange,
 }) => {
   return (
     <div
@@ -30,7 +30,7 @@ export const ScenarioToolbar: React.FC<Props> = ({
        {Object.values(SCENARIOS).map((scenario) => (
         <button
           key={scenario.id}
-          onClick={() => onSelect(scenario.id)}
+          onClick={() => onScenarioChange(scenario.id)}
           style={{
             width: "100%",
             marginBottom: "6px",

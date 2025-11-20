@@ -1,206 +1,136 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Viewer , ScreenSpaceEventHandler, ScreenSpaceEventType, Cesium3DTileFeature} from "cesium";
-import { flyToTilesetCustomView } from "./CameraUtils";
+import {
+   Viewer ,
+   ScreenSpaceEventHandler,
+   ScreenSpaceEventType, 
+   Cesium3DTileFeature
+  } from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
 import "./style.css";
 import { initCesiumViewer } from "./CesiumLoader";
-import { loadIonTileset } from "./TilesetComponent";
+import {
+  initScenarioForCesium,
+  toggleLayerForScenario,
+  LoadedLayer,}
+  from "../../scenarios/ScenarioManager";
 
 
+interface CesiumViewerProps {
+  currentScenario?: string;
+}
 
-export const CesiumViewer: React.FC = () => {
+export const CesiumViewer: React.FC <CesiumViewerProps> = ({
+  currentScenario,
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
    const viewerRef = useRef<Viewer | null>(null);
-   const [layers,setLayers]=useState<any[]>([])
+   const [layers,setLayers]=useState<LoadedLayer[]>([])
+   const [viewerReady, setViewerReady]= useState(false);
    
 
-
-  useEffect(() => {
+/* --------------------------------------------------
+   * 1. Init Cesium viewer ONCE
+   * -------------------------------------------------- */
+  
+  
+   useEffect(() => {
     const init = async () => {
       if (!containerRef.current) return;
 
       // creating cesium viewer
       const viewerInstance = await initCesiumViewer(containerRef.current);
       viewerRef.current = viewerInstance;
-       //viewerRef.current = await initCesiumViewer(containerRef.current);
+      
+      
+      // ADD CLICK HANDLER FOR PICKING
+      const handler = new ScreenSpaceEventHandler(viewerInstance.scene.canvas);
 
-       const loadLayers:any[]=[];
+      handler.setInputAction(
+        (movement: any) => {
+          const picked = viewerInstance.scene.pick(movement.position);
 
+          const popup = document.getElementById("infoPopup") as HTMLDivElement;
+          if (!popup) return;
 
-       // 1.  IFC/3D 
-       loadLayers.push(await loadIonTileset(viewerInstance, 3476879, "3DTILES", "IFC Model 1"));
-       loadLayers.push(await loadIonTileset(viewerInstance, 4066080, "3DTILES", "IFC Model 2"));
-       loadLayers.push(await loadIonTileset(viewerInstance, 4066077, "3DTILES", "IFC Model 3"));
-       loadLayers.push(await loadIonTileset(viewerInstance, 4065957, "3DTILES", "IFC Model 4"));
-       loadLayers.push(await loadIonTileset(viewerInstance, 4066099, "3DTILES", "IFC Model 5"));
-       loadLayers.push(await loadIonTileset(viewerInstance,4046995 , "3DTILES", "IFC Model 6"));
-
-
-       //2. GeoJSON
-
-       loadLayers.push(await loadIonTileset(viewerInstance, 4088254, "GEOJSON", "OSM Building"));
-       loadLayers.push(await loadIonTileset(viewerInstance, 4088271, "GEOJSON", "OSM Landuse"));
-       loadLayers.push(await loadIonTileset(viewerInstance, 4088283, "GEOJSON", "OSM Railway"));
-       loadLayers.push(await loadIonTileset(viewerInstance, 4088295, "GEOJSON", "OSM Roadway"));
-       loadLayers.push(await loadIonTileset(viewerInstance, 4088344, "GEOJSON", "OSM Public Transport"));
-
-
-
-       //3. City GML
-       loadLayers.push(await loadIonTileset(viewerInstance, 4078829, "3DTILES", "CITY GML LoD2"));
-
-       
-       //Set initial visiblity state
-       loadLayers.forEach((layer)=>{
-        //Default:off
-        layer.visible=false;
-        //layer.tileset.show=false;
-
-        if (layer.type === "3DTILES" && layer.tileset) {
-          layer.tileset.show = false;
-        }
-        if (layer.type === "GEOJSON" && layer.datasource) {
-          layer.datasource.show = false;
-        }
-
-
-
-        if (layer.name==="IFC Model 1" || layer.name ==="CITY GML LoD2") 
-          {
-          layer.visible = true;
-          if (layer.tileset) layer.tileset.show = true;
-          if (layer.datasource) layer.datasource.show = true;
-          }
-       });
-       
-       setLayers(loadLayers.filter(Boolean));
-       
-
-       // Zoom to IFC Model 1 on startup
-       const ifc1 = loadLayers.find(l => l?.name === "IFC Model 1");
-       if (ifc1 && ifc1.tileset) {
-        await ifc1.tileset.readyPromise;  // IMPORTANT
-        flyToTilesetCustomView(viewerInstance, ifc1.tileset, 1.5);
-       
-      }
-
-         // ADD CLICK HANDLER FOR PICKING
-       const handler = new ScreenSpaceEventHandler(viewerInstance.scene.canvas);
-
-       handler.setInputAction(
-         (movement: any) => {
-           const picked = viewerInstance.scene.pick(movement.position);
-
-           const popup = document.getElementById("infoPopup") as HTMLDivElement;
-           if (!popup) return;
-
-           if (!picked) {
-             popup.style.display = "none";
-             return;
-           }
-
-           // Case 1 — 3D Tiles
-            if (picked instanceof Cesium3DTileFeature) {
-            const props: any = {};
-
-            picked.getPropertyIds().forEach((id: string) => {
-              props[id] = picked.getProperty(id);
-            });
-
-            popup.style.display = "block";
-            popup.innerHTML = `
-              <b>3D Tiles Feature</b><br/>
-              <pre>${JSON.stringify(props, null, 2)}</pre>
-            `;
-
+          if (!picked) {
+            popup.style.display = "none";
             return;
           }
 
-           // Case 2 — GeoJSON Entity
-           if (picked.id) {
-             const entity = picked.id;
+          // Case 1 — 3D Tiles
+           if (picked instanceof Cesium3DTileFeature) {
+           const props: any = {};
 
-             popup.style.display = "block";
-             popup.innerHTML = `
-               <b>GeoJSON Feature</b><br/>
-               ${
-               entity.properties
-               ? `<pre>${JSON.stringify(entity.properties._propertyNames.map((n: string) => ({
-                   [n]: entity.properties[n].getValue()
-                 })), null, 2)}</pre>`
-               : "No attributes"
-               }
-             `;
-             return;
-           }
-
-           popup.style.display = "none";
-         },
-         ScreenSpaceEventType.LEFT_CLICK
-       );   
-    };
-
-       //void init();
-       init();
-
-     return () => viewerRef.current?.destroy();
-  }, []);
-
-
-  const toggleLayerVisibility = (index:number)=>{
-    setLayers((prev)=>{
-      const updated =[...prev];
-      const clickedLayer = updated[index];
-
-      //Toggle visiblity
-      clickedLayer.visible=!clickedLayer.visible;
-
-      //apply visibility yo the cesium
-      if (clickedLayer.type==="3DTILES" && clickedLayer.tileset){
-        clickedLayer.tileset.show = clickedLayer.visible;
-      }
-
-      if (clickedLayer.type === "GEOJSON" && clickedLayer.datasource) {
-        clickedLayer.datasource.show = clickedLayer.visible;
-      }
-
-
-     //If IFC Model 6 become visible
-      if (clickedLayer.name === "IFC Model 6" && clickedLayer.visible) {
-        updated.forEach((layer)=> {
-          if (
-            layer.name.startsWith("IFC Model")&&
-            layer.name !=="IFC Model 6"
-          ){
-            layer.visible=false;
-            layer.tileset.show=false;
-           }
+           picked.getPropertyIds().forEach((id: string) => {
+             props[id] = picked.getProperty(id);
            });
-      }  
 
-          //if any other IFC model turned on
-          if (
-            clickedLayer.name.startsWith ("IFC Model") &&
-            clickedLayer.name!=="IFC Model 6" &&
-            clickedLayer.visible
-          )
-          {
-            updated.forEach((layer)=>{
-              if (layer.name==="IFC Model 6"){
-                layer.visible= false;
-                layer.tileset.show=false;
+           popup.style.display = "block";
+           popup.innerHTML = `
+             <b>3D Tiles Feature</b><br/>
+             <pre>${JSON.stringify(props, null, 2)}</pre>
+           `;
+
+           return;
+         }
+
+          // Case 2 — GeoJSON Entity
+          if (picked.id) {
+            const entity = picked.id;
+
+            popup.style.display = "block";
+            popup.innerHTML = `
+              <b>GeoJSON Feature</b><br/>
+              ${
+              entity.properties
+              ? `<pre>${JSON.stringify(entity.properties._propertyNames.map((n: string) => ({
+                  [n]: entity.properties[n].getValue()
+                })), null, 2)}</pre>`
+              : "No attributes"
               }
-            });
+            `;
+            return;
           }
 
-        viewerRef.current?.scene.requestRender();        
-        
-        return updated;
+          popup.style.display = "none";
+        },
+        ScreenSpaceEventType.LEFT_CLICK
+      );   
 
-    });
-  }
+      setViewerReady(true);
+    };
 
+      init();
+      return () => viewerRef.current?.destroy();
+    }, []);
+
+
+  /* --------------------------------------------------
+    * 2. Load Layers when viewer is ready & scenario changes
+    * -------------------------------------------------- */
+   useEffect(() => {
+    if (!viewerReady || !viewerRef.current) return;
+
+    const load = async () => {
+       const viewer = viewerRef.current!;
+       const newLayers = await initScenarioForCesium(currentScenario, viewer);
+       setLayers(newLayers);
+    };
+
+    void load();
+  }, [viewerReady, currentScenario]); 
+
+  /* --------------------------------------------------
+    * 3. Toggle Layer Visibility
+    * -------------------------------------------------- */
+  
+  const toggleLayerVisibility = (index:number)=>{
+    setLayers((prev)=>
+      toggleLayerForScenario(currentScenario, prev, index, viewerRef.current)
+      );  
+
+  };
 
    return (
   <div
@@ -281,7 +211,7 @@ export const CesiumViewer: React.FC = () => {
               if (!viewer) return;
               // For 3D Tiles, use custom angled camera
               if (layer.type === "3DTILES" && layer.boundingSphere) {
-                flyToTilesetCustomView(viewer, layer);
+                viewer.flyTo(layer.tileset, { duration: 1.5 } );
               }
               // For GeoJSON, use viewer.flyTo on the datasource
               if (layer.type === "GEOJSON" && layer.datasource) {

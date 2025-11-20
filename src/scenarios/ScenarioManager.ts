@@ -1,85 +1,65 @@
 // src/scenarios/ScenarioManager.ts
+import type { Viewer } from "cesium";
+import { ScenarioLayer } from "./SCENARIOS";
+import { initIFCScenario, toggleIFCLayer } from "./ifc/IFCScenario";
+import { initBusScenario, toggleBusLayer } from "./bus/BusScenario";
+import { initNoiseScenario, toggleNoiseLayer } from "./noise/NoiseScenario";
+import { initEnergyScenario, toggleEnergyLayer } from "./energy/EnergyScenario";
 
-export type ScenarioName = "IFC" | "BUS" | "NOISE" | "ENERGY";
-
-export interface ScenarioDefinition {
-  name: ScenarioName;
-
-  // Cesium Layers to load
-  cesiumLayers: {
-    type: "3DTILES" | "GEOJSON";
-    assetId: number;
-    name: string;
-  }[];
-
-  // When TRUE → App.tsx will show the iTwin viewer
-  showITwin: boolean;
+export interface LoadedLayer extends ScenarioLayer {
+  tileset?: any;
+  datasource?: any;
+  boundingSphere?: any;
+  visible: boolean;
 }
 
-export const SCENARIOS: Record<ScenarioName, ScenarioDefinition> = {
-  IFC: {
-    name: "IFC",
-    showITwin: true,
-    cesiumLayers: [
-      { type: "3DTILES", assetId: 3476879, name: "IFC Model 1" },
-      { type: "3DTILES", assetId: 4066080, name: "IFC Model 2" },
-      { type: "3DTILES", assetId: 4066077, name: "IFC Model 3" },
-      { type: "3DTILES", assetId: 4065957, name: "IFC Model 4" },
-      { type: "3DTILES", assetId: 4066099, name: "IFC Model 5" },
-      { type: "3DTILES", assetId: 4046995, name: "IFC Model 6" },
-      { type: "3DTILES", assetId: 4078829, name: "CITY GML LoD2" },
-    ],
-  },
+export interface ScenarioHandlers {
+  init: (viewer: Viewer) => Promise<LoadedLayer[]>;
+  toggleLayer: (
+    layers: LoadedLayer[],
+    index: number,
+    viewer: Viewer | null
+  ) => LoadedLayer[];
+}
 
-  BUS: {
-    name: "BUS",
-    showITwin: false,
-    cesiumLayers: [
-      // (EMPTY for now — later GIS sources will be added)
-      // Example:
-     
-    ],
+const handlers: Record<string, ScenarioHandlers> = {
+  ifc: {
+    init: initIFCScenario,
+    toggleLayer: toggleIFCLayer,
   },
-
-  NOISE: {
-    name: "NOISE",
-    showITwin: false,
-    cesiumLayers: [
-      // (EMPTY for now)
-    ],
+  bus: {
+    init: initBusScenario,
+    toggleLayer: toggleBusLayer,
   },
-
-  ENERGY: {
-    name: "ENERGY",
-    showITwin: false,
-    cesiumLayers: [
-      // (EMPTY for now)
-    ],
+  noise: {
+    init: initNoiseScenario,
+    toggleLayer: toggleNoiseLayer,
+  },
+  energy: {
+    init: initEnergyScenario,
+    toggleLayer: toggleEnergyLayer,
   },
 };
 
+function getHandlers(id: string | undefined): ScenarioHandlers {
+  const key = (id || "ifc").toLowerCase();
+  return handlers[key] ?? handlers["ifc"];
+}
 
-// ScenarioManager = simple wrapper around the active scenario
-export class ScenarioManager {
-  private scenario: ScenarioDefinition;
+export async function initScenarioForCesium(
+  id: string | undefined,
+  viewer: Viewer
+): Promise<LoadedLayer[]> {
+  const h = getHandlers(id);
+  return h.init(viewer);
+}
 
-  constructor(defaultScenario: ScenarioName = "IFC") {
-    this.scenario = SCENARIOS[defaultScenario];
-  }
-
-  setScenario(name: ScenarioName) {
-    this.scenario = SCENARIOS[name];
-  }
-
-  getScenario(): ScenarioDefinition {
-    return this.scenario;
-  }
-
-  getCesiumLayers() {
-    return this.scenario.cesiumLayers;
-  }
-
-  getShowITwin() {
-    return this.scenario.showITwin;
-  }
+export function toggleLayerForScenario(
+  id: string | undefined,
+  layers: LoadedLayer[],
+  index: number,
+  viewer: Viewer | null
+): LoadedLayer[] {
+  const h = getHandlers(id);
+  return h.toggleLayer(layers, index, viewer);
 }
