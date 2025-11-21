@@ -17,7 +17,7 @@ export const ScenarioToolbar: React.FC<Props> = ({
         padding: "10px",
         borderRadius: "8px",
         boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
-        width: "100%",
+        width: "240px",
       }}
     >
       <h4 style={{ marginTop: 0, marginBottom: "10px" }}>Scenarios</h4>
@@ -28,9 +28,9 @@ export const ScenarioToolbar: React.FC<Props> = ({
           onClick={() => onScenarioChange(scenario.id)}
           style={{
             width: "100%",
-            marginRight: "auto",
+            //marginRight: "auto",
             marginBottom: "6px",
-            padding: "8px",
+            padding: "10px",
             borderRadius: "6px",
             border: "1px solid #ccc",
             background:

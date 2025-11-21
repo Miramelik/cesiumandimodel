@@ -221,7 +221,7 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
         position: "absolute",
         bottom: "20px",
         right: "20px",
-        padding: "10px",
+        padding: "20px",
         background: "rgba(0,0,0,0.75)",
         color: "white",
         borderRadius: "6px",
@@ -239,6 +239,7 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
         top: "150px",
         right: "15px",
         width: "260px",
+        marginRight: "20px",
         display: "flex",
         flexDirection: "column",
         gap: "12px",
@@ -271,7 +272,7 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
         <div
           key={layer.id}
           style={{
-            padding: "6px 8px",
+            padding: "6px 10px",
             marginBottom: "6px",
             borderRadius: "4px",
             cursor: "pointer",

@@ -89,7 +89,7 @@ const App: React.FC = () => {
      
 
       {/*  CESIUM VIEWER — ALWAYS VISIBLE, FULL SCREEN */}
-           <div id= "cesiumContainer"
+           <div 
            style={{ width: "100%", height: "100vh" , overflow: "hidden"            
            }}
            >
