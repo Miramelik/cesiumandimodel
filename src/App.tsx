@@ -86,11 +86,7 @@ const App: React.FC = () => {
 
   return (
     <div className="app-root" style={{ width: "100%", height: "100%", position: "relative" }}>
-      {/* FLOATING SCENARIO BUTTONS : Removed */}
-       {/*<ScenarioToolbar
-      currentScenario={currentScenario}
-      onScenarioChange= {setCurrentScenario}
-      />*/}
+     
 
       {/*  CESIUM VIEWER — ALWAYS VISIBLE, FULL SCREEN */}
            <div id= "cesiumContainer"

@@ -220,7 +220,7 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
       style={{
         position: "absolute",
         bottom: "20px",
-        left: "20px",
+        right: "20px",
         padding: "10px",
         background: "rgba(0,0,0,0.75)",
         color: "white",

@@ -28,6 +28,7 @@ export const ScenarioToolbar: React.FC<Props> = ({
           onClick={() => onScenarioChange(scenario.id)}
           style={{
             width: "100%",
+            marginRight: "auto",
             marginBottom: "6px",
             padding: "8px",
             borderRadius: "6px",
