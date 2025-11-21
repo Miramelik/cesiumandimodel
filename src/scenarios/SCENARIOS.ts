@@ -1,4 +1,3 @@
-// src/scenarios/SCENARIOS.ts
 
 export type LayerType = "3DTILES" | "GEOJSON" | "IMAGE" | "WMS";
 

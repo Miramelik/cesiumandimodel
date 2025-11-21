@@ -10,10 +10,17 @@ import "cesium/Build/Cesium/Widgets/widgets.css";
 import "./style.css";
 import { initCesiumViewer } from "./CesiumLoader";
 import {
-  initScenarioForCesium,
-  toggleLayerForScenario,
-  LoadedLayer,}
+  ScenarioManager,
+  type ScenarioId,
+  type LoadedLayer,
+  }
   from "../../scenarios/ScenarioManager";
+
+  import {
+    updateBusBufferRadius,
+    getBusStats,
+    type BusStats,
+  } from "../../scenarios/bus/BusScenario";
 
 
 interface CesiumViewerProps {
@@ -27,6 +34,10 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
    const viewerRef = useRef<Viewer | null>(null);
    const [layers,setLayers]=useState<LoadedLayer[]>([])
    const [viewerReady, setViewerReady]= useState(false);
+
+   //Bus specific state
+   const [bufferRadius, setBufferRadius]= useState<number>(400); //meters
+   const [busStats, setBusStats]= useState<BusStats |null>(null);
    
 
 /* --------------------------------------------------
@@ -76,8 +87,8 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
          }
 
           // Case 2 — GeoJSON Entity
-          if (picked.id) {
-            const entity = picked.id;
+          if ((picked as any).id) {
+            const entity = (picked as any).id;
 
             popup.style.display = "block";
             popup.innerHTML = `
@@ -112,13 +123,23 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
    useEffect(() => {
     if (!viewerReady || !viewerRef.current) return;
 
-    const load = async () => {
+    const loadScenario = async () => {
        const viewer = viewerRef.current!;
-       const newLayers = await initScenarioForCesium(currentScenario, viewer);
+       const scenarioId=currentScenario as ScenarioId;
+
+       const newLayers = await ScenarioManager.loadScenario(scenarioId, viewer);
        setLayers(newLayers);
+
+       if (currentScenario==="bus") {
+        setBufferRadius(400); //reset to default
+        setBusStats(await getBusStats());
+       } else {
+        setBusStats(null);
+       }
+
     };
 
-    void load();
+    void loadScenario();
   }, [viewerReady, currentScenario]); 
 
   /* --------------------------------------------------
@@ -126,11 +147,44 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
     * -------------------------------------------------- */
   
   const toggleLayerVisibility = (index:number)=>{
-    setLayers((prev)=>
-      toggleLayerForScenario(currentScenario, prev, index, viewerRef.current)
-      );  
+    if (!viewerRef.current) return;
 
+    setLayers((prev)=> {
+       const updated = [...prev];
+      const clicked = updated[index];
+
+      if (!clicked) return prev;
+
+      clicked.visible = !clicked.visible;
+
+      if (clicked.tileset) clicked.tileset.show = clicked.visible;
+      if (clicked.datasource) clicked.datasource.show = clicked.visible;
+
+      viewerRef.current?.scene.requestRender();
+
+      return updated;
+    }); 
+        
   };
+
+    /* --------------------------------------------------
+   * 4. Bus buffer slider handler
+   * -------------------------------------------------- */
+  const handleBusRadiusChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const newRadius = Number(e.target.value);
+    setBufferRadius(newRadius);
+
+    if (currentScenario === "bus" && viewerRef.current) {
+      await updateBusBufferRadius(newRadius);
+      setBusStats(getBusStats());
+    }
+  };
+
+    /* --------------------------------------------------
+   * 4. JSX Layout
+   * -------------------------------------------------- */
 
    return (
   <div
@@ -177,16 +231,24 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
     <div
       style={{
         position: "absolute",
-        top: "20px",
-        right: "20px",
-        padding: "10px",
-        width: "220px",
-        background: "white",
-        borderRadius: "6px",
-        boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
+        top: "10px",
+        right: "10px",
+        width: "260px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "12px",
         zIndex: 1000,
       }}
     >
+       {/* === LAYERS BOX === */}
+      <div
+        style={{
+          padding: "10px",
+          background: "white",
+          borderRadius: "6px",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
+        }}
+      >
       <h4 style={{ margin: "0 0 10px 0" }}>Layers</h4>
 
       {layers.map((layer, index) => (
@@ -210,7 +272,7 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
               const viewer = viewerRef.current;
               if (!viewer) return;
               // For 3D Tiles, use custom angled camera
-              if (layer.type === "3DTILES" && layer.boundingSphere) {
+              if (layer.type === "3DTILES" && layer.tileset) {
                 viewer.flyTo(layer.tileset, { duration: 1.5 } );
               }
               // For GeoJSON, use viewer.flyTo on the datasource
@@ -232,7 +294,66 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
       ))}
     </div>
 
-  </div>
-);
+    {/* === SCENARIO TOOLBAR BOX (from your UI) === */}
+      <div
+        style={{
+          padding: "10px",
+          background: "white",
+          borderRadius: "6px",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
+        }}
+        >
+             <h4 style={{ marginTop: 0 }}>Scenarios</h4>
+        {/* You probably already render this above outside.
+            Move that block here or import as a component */}
+     
 
+        </div>
+
+    {/* --- BUS-SPECIFIC UI: BUFFER + STATS --- */}
+      {currentScenario === "bus" && (
+        <div
+          style={{
+               padding: "10px 14px",
+            background: "white",
+            borderRadius: "8px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+            fontSize: "0.9rem",
+          }}
+        >
+          <strong>Bus Buffer Settings</strong>
+          <div style={{ marginTop: "8px" }}>
+            <label htmlFor="busBufferRange">Radius (m): </label>
+            <input
+              id="busBufferRange"
+              type="range"
+              min={400}
+              max={800}
+              step={100}
+              value={bufferRadius}
+              onChange={handleBusRadiusChange}
+              style={{ width: "100%" }}
+            />
+            <div style={{ textAlign: "right", marginTop: "2px" }}>
+              <b>{bufferRadius}</b> m
+            </div>
+          </div>
+
+          <hr/>
+
+          <strong>Bus Stop Stats</strong>
+
+          <div style={{ marginTop: "4px" }}>
+            <div>Total: <b>{busStats?.total ?? 0}</b></div>
+            <div>Inside buffer: <b>{busStats?.inside ?? 0}</b></div>
+            <div>Outside buffer: <b>{busStats?.outside ?? 0}</b></div>
+            <div>Coverage: <b>{busStats?.coveragePercent ?? 0}%</b></div>
+            </div>
+          </div>        
+      )}
+  </div>
+  </div>
+
+);
 };
+

@@ -1,5 +1,6 @@
 import {
   Viewer,
+  Cesium3DTileset,
 } from "cesium";
 import { SCENARIOS } from "../SCENARIOS";
 import { loadIonTileset } from "../../components/cesium/TilesetComponent";
@@ -34,8 +35,8 @@ export async function initIFCScenario(viewer: Viewer): Promise<LoadedLayer[]> {
 
     loaded.push({
       ...cfg,
-      tileset: res.tileset,
-      datasource: res.datasource,
+      tileset: res.tileset ?? undefined,
+      datasource: res.datasource ?? undefined,
       boundingSphere: res.boundingSphere,
       visible,
     });
@@ -44,7 +45,7 @@ export async function initIFCScenario(viewer: Viewer): Promise<LoadedLayer[]> {
   // Fly to IFC Model 1
   const ifc1 = loaded.find((l) => l.name === "IFC Model 1" && l.tileset);
   if (ifc1?.tileset) {
-    await ifc1.tileset.readyPromise;
+    await (ifc1.tileset as any).readyPromise;
     flyToTilesetCustomView(viewer, ifc1.tileset, 1.5);
   }
 

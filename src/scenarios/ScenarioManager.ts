@@ -1,65 +1,54 @@
-// src/scenarios/ScenarioManager.ts
-import type { Viewer } from "cesium";
-import { ScenarioLayer } from "./SCENARIOS";
+import type { Viewer, Cesium3DTileset } from "cesium";
+import type { GeoJsonDataSource } from "cesium";
+
+import { LayerType, ScenarioLayer } from "./SCENARIOS";
 import { initIFCScenario, toggleIFCLayer } from "./ifc/IFCScenario";
 import { initBusScenario, toggleBusLayer } from "./bus/BusScenario";
 import { initNoiseScenario, toggleNoiseLayer } from "./noise/NoiseScenario";
 import { initEnergyScenario, toggleEnergyLayer } from "./energy/EnergyScenario";
 
-export interface LoadedLayer extends ScenarioLayer {
-  tileset?: any;
-  datasource?: any;
-  boundingSphere?: any;
+
+export type ScenarioId = "ifc" | "bus" | "noise" | "energy";
+
+
+
+export interface LoadedLayer {
+  id: number | string;                          // internal id (e.g. "ifc-1", "bus-stops")
+  name: string;                        // label in the UI
+  type: LayerType;
+  tileset?: Cesium3DTileset;           // for 3D tiles layers
+  datasource?: GeoJsonDataSource;      // for GeoJSON layers
   visible: boolean;
+
+  boundingSphere?: any;               // optional precomputed bounding sphere
 }
 
-export interface ScenarioHandlers {
-  init: (viewer: Viewer) => Promise<LoadedLayer[]>;
-  toggleLayer: (
-    layers: LoadedLayer[],
-    index: number,
-    viewer: Viewer | null
-  ) => LoadedLayer[];
-}
+/**
+ * ScenarioManager is a small helper that knows
+ * which init function to call for each scenario.
+ */
+export class ScenarioManager {
+  /**
+   * Load all Cesium layers for a scenario.
+   * Each initXYZScenario(viewer) returns LoadedLayer[]
+   */
+  static async loadScenario(
+    id: ScenarioId,
+    viewer: Viewer
+  ): Promise<LoadedLayer[]> {
+    switch (id) {
+      case "bus":
+        return initBusScenario(viewer);
 
-const handlers: Record<string, ScenarioHandlers> = {
-  ifc: {
-    init: initIFCScenario,
-    toggleLayer: toggleIFCLayer,
-  },
-  bus: {
-    init: initBusScenario,
-    toggleLayer: toggleBusLayer,
-  },
-  noise: {
-    init: initNoiseScenario,
-    toggleLayer: toggleNoiseLayer,
-  },
-  energy: {
-    init: initEnergyScenario,
-    toggleLayer: toggleEnergyLayer,
-  },
-};
+      case "noise":
+        return initNoiseScenario(viewer);
 
-function getHandlers(id: string | undefined): ScenarioHandlers {
-  const key = (id || "ifc").toLowerCase();
-  return handlers[key] ?? handlers["ifc"];
-}
+      case "energy":
+        return initEnergyScenario(viewer);
 
-export async function initScenarioForCesium(
-  id: string | undefined,
-  viewer: Viewer
-): Promise<LoadedLayer[]> {
-  const h = getHandlers(id);
-  return h.init(viewer);
-}
-
-export function toggleLayerForScenario(
-  id: string | undefined,
-  layers: LoadedLayer[],
-  index: number,
-  viewer: Viewer | null
-): LoadedLayer[] {
-  const h = getHandlers(id);
-  return h.toggleLayer(layers, index, viewer);
+      case "ifc":
+      default:
+        return initIFCScenario(viewer);
+    }
+  }
 }

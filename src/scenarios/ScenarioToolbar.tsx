@@ -1,4 +1,3 @@
-// src/components/scenarios/ScenarioToolbar.tsx
 import React from "react";
 import { SCENARIOS } from "./SCENARIOS";
 
