@@ -13,15 +13,11 @@ export const ScenarioToolbar: React.FC<Props> = ({
   return (
     <div
       style={{
-        position: "absolute",
-        top: "20px",
-        left: "20px",
         background: "white",
         padding: "10px",
         borderRadius: "8px",
         boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
-        zIndex: 9999,
-        width: "180px",
+        width: "100%",
       }}
     >
       <h4 style={{ marginTop: 0, marginBottom: "10px" }}>Scenarios</h4>

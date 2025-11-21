@@ -22,13 +22,18 @@ import {
     type BusStats,
   } from "../../scenarios/bus/BusScenario";
 
+  import { ScenarioToolbar } from "../../scenarios/ScenarioToolbar";
+import { on } from "events";
+
 
 interface CesiumViewerProps {
   currentScenario?: string;
+  onScenarioChange?: (id: string) => void;
 }
 
 export const CesiumViewer: React.FC <CesiumViewerProps> = ({
   currentScenario,
+  onScenarioChange,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
    const viewerRef = useRef<Viewer | null>(null);
@@ -231,8 +236,8 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
     <div
       style={{
         position: "absolute",
-        top: "10px",
-        right: "10px",
+        top: "150px",
+        right: "15px",
         width: "260px",
         display: "flex",
         flexDirection: "column",
@@ -240,6 +245,17 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
         zIndex: 1000,
       }}
     >
+
+      {
+        onScenarioChange && currentScenario && (
+          <ScenarioToolbar
+          currentScenario={currentScenario} 
+          onScenarioChange={onScenarioChange}
+          />
+        )     
+
+      }
+
        {/* === LAYERS BOX === */}
       <div
         style={{
@@ -294,27 +310,12 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
       ))}
     </div>
 
-    {/* === SCENARIO TOOLBAR BOX (from your UI) === */}
-      <div
-        style={{
-          padding: "10px",
-          background: "white",
-          borderRadius: "6px",
-          boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
-        }}
-        >
-             <h4 style={{ marginTop: 0 }}>Scenarios</h4>
-        {/* You probably already render this above outside.
-            Move that block here or import as a component */}
-     
-
-        </div>
 
     {/* --- BUS-SPECIFIC UI: BUFFER + STATS --- */}
       {currentScenario === "bus" && (
         <div
           style={{
-               padding: "10px 14px",
+               padding: "10px",
             background: "white",
             borderRadius: "8px",
             boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
