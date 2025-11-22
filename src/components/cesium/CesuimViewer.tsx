@@ -23,8 +23,7 @@ import {
   } from "../../scenarios/bus/BusScenario";
 
   import { ScenarioToolbar } from "../../scenarios/ScenarioToolbar";
-import { on } from "events";
-import { SCENARIOS,  ScenarioDefinition } from "../../scenarios/SCENARIOS";
+import { SCENARIOS } from "../../scenarios/SCENARIOS";
 import { flyToTilesetCustomView } from "./CameraUtils";
 
 
@@ -41,6 +40,7 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
    const viewerRef = useRef<Viewer | null>(null);
    const [layers,setLayers]=useState<LoadedLayer[]>([])
    const [viewerReady, setViewerReady]= useState(false);
+   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
 
    //Bus specific state
    const [bufferRadius, setBufferRadius]= useState<number>(400); //meters
@@ -54,73 +54,91 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
   
    useEffect(() => {
     const init = async () => {
-      if (!containerRef.current) return;
+      if (!containerRef.current || viewerRef.current) return;
 
-      // creating cesium viewer
-      const viewerInstance = await initCesiumViewer(containerRef.current);
-      viewerRef.current = viewerInstance;
-      
-      
-      // ADD CLICK HANDLER FOR PICKING
-      const handler = new ScreenSpaceEventHandler(viewerInstance.scene.canvas);
+      try {
+        
+              // creating cesium viewer
+              const viewerInstance = await initCesiumViewer(containerRef.current);
+              viewerRef.current = viewerInstance;
+              
+              
+              // ADD CLICK HANDLER FOR PICKING
+              const handler = new ScreenSpaceEventHandler(viewerInstance.scene.canvas);
+              handlerRef.current = handler;
+        
+              handler.setInputAction(
+                (movement: any) => {
+                  const picked = viewerInstance.scene.pick(movement.position);
+        
+                  const popup = document.getElementById("infoPopup") as HTMLDivElement;
+                  if (!popup) return;
+        
+                  if (!picked) {
+                    popup.style.display = "none";
+                    return;
+                  }
+        
+                  // Case 1 — 3D Tiles
+                   if (picked instanceof Cesium3DTileFeature) {
+                   const props: any = {};
+        
+                   picked.getPropertyIds().forEach((id: string) => {
+                     props[id] = picked.getProperty(id);
+                   });
+        
+                   popup.style.display = "block";
+                   popup.innerHTML = `
+                     <b>3D Tiles Feature</b><br/>
+                     <pre>${JSON.stringify(props, null, 2)}</pre>
+                   `;
+        
+                   return;
+                 }
+        
+                  // Case 2 — GeoJSON Entity
+                  if ((picked as any).id) {
+                    const entity = (picked as any).id;
+        
+                    popup.style.display = "block";
+                    popup.innerHTML = `
+                      <b>GeoJSON Feature</b><br/>
+                      ${
+                      entity.properties
+                      ? `<pre>${JSON.stringify(entity.properties._propertyNames.map((n: string) => ({
+                          [n]: entity.properties[n].getValue()
+                        })), null, 2)}</pre>`
+                      : "No attributes"
+                      }
+                    `;
+                    return;
+                  }
+        
+                  popup.style.display = "none";
+                },
+                ScreenSpaceEventType.LEFT_CLICK
+              );   
+        
+              setViewerReady(true);
+              console.log("✅ Cesium viewer initialized");
+            } catch (error) {
+              console.error("❌ Error initializing Cesium viewer:", error);
+            }
 
-      handler.setInputAction(
-        (movement: any) => {
-          const picked = viewerInstance.scene.pick(movement.position);
-
-          const popup = document.getElementById("infoPopup") as HTMLDivElement;
-          if (!popup) return;
-
-          if (!picked) {
-            popup.style.display = "none";
-            return;
-          }
-
-          // Case 1 — 3D Tiles
-           if (picked instanceof Cesium3DTileFeature) {
-           const props: any = {};
-
-           picked.getPropertyIds().forEach((id: string) => {
-             props[id] = picked.getProperty(id);
-           });
-
-           popup.style.display = "block";
-           popup.innerHTML = `
-             <b>3D Tiles Feature</b><br/>
-             <pre>${JSON.stringify(props, null, 2)}</pre>
-           `;
-
-           return;
-         }
-
-          // Case 2 — GeoJSON Entity
-          if ((picked as any).id) {
-            const entity = (picked as any).id;
-
-            popup.style.display = "block";
-            popup.innerHTML = `
-              <b>GeoJSON Feature</b><br/>
-              ${
-              entity.properties
-              ? `<pre>${JSON.stringify(entity.properties._propertyNames.map((n: string) => ({
-                  [n]: entity.properties[n].getValue()
-                })), null, 2)}</pre>`
-              : "No attributes"
-              }
-            `;
-            return;
-          }
-
-          popup.style.display = "none";
-        },
-        ScreenSpaceEventType.LEFT_CLICK
-      );   
-
-      setViewerReady(true);
     };
 
       init();
-      return () => viewerRef.current?.destroy();
+      return () =>{
+        if (handlerRef.current) {
+      handlerRef.current.destroy();
+      handlerRef.current = null;  
+        }
+        if (viewerRef.current) {
+          viewerRef.current.destroy();
+          viewerRef.current = null;
+        }
+      };
+      
     }, []);
 
 
@@ -128,23 +146,36 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
     * 2. Load Layers when viewer is ready & scenario changes
     * -------------------------------------------------- */
    useEffect(() => {
-    if (!viewerReady || !viewerRef.current) return;
-    const viewer = viewerRef.current!;
+    if (!viewerReady || !viewerRef.current || !currentScenario) return;
+
+    const viewer = viewerRef.current;
 
     const loadScenario = async () => {
        const scenarioId=currentScenario as ScenarioId;
        const scenarioDef= SCENARIOS[scenarioId];
        if (!scenarioDef) return;
 
+        console.log(`🔄 Loading scenario: ${scenarioId}`);
+
+
+
        layers.forEach((layer) => {
-        // Clean up existing layers
-        if (layer.tileset) {
-          viewer.scene.primitives.remove(layer.tileset);
+
+        try {
+          // Clean up existing layers
+          if (layer.tileset) {
+            viewer.scene.primitives.remove(layer.tileset);
+          }
+          if (layer.datasource) {
+            viewer.dataSources.remove(layer.datasource);
+          }
         }
-        if (layer.datasource) {
-          viewer.dataSources.remove(layer.datasource);
+        catch (error) {
+          console.error("Error removing layer:", error);
         }
       });
+
+      await new Promise((resolve) => setTimeout(resolve, 100)); //wait a tick
 
        const newLayers = await ScenarioManager.loadScenario(scenarioId, viewer);
        setLayers(newLayers);
@@ -155,15 +186,21 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
          .filter(Boolean) as any[];
 
        if (cesiumObjects.length > 0) {
-         if (scenarioDef.options?.cameraPreset === "iso" && newLayers.some(l => l.tileset)) {
-           // find first tileset from loaded layers
-           const firstTileset = newLayers.find(l => l.tileset)?.tileset;
-           if (firstTileset) {
-             flyToTilesetCustomView(viewer, firstTileset, 2);
-           }
-         } else {
-           await viewer.flyTo(cesiumObjects, { duration: 2 });
-         }
+        try {
+          if (scenarioDef.options?.cameraPreset === "iso" && newLayers.some(l => l.tileset)) {
+            // find first tileset from loaded layers
+            const firstTileset = newLayers.find(l => l.tileset)?.tileset;
+            if (firstTileset) {
+              await (firstTileset as any).readyPromise;
+              flyToTilesetCustomView(viewer, firstTileset, 2);
+            }
+          } else {
+            await viewer.flyTo(cesiumObjects, { duration: 2 });
+          }
+        }
+        catch (error) {
+          console.error("Error during initial camera flyTo:", error);
+        }
        }
 
        if (currentScenario==="bus") {
@@ -172,10 +209,12 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
        } else {
         setBusStats(null);
        }
-
+       console.log(`✅ Scenario loaded: ${scenarioId}, ${newLayers.length} layers`);
     };
 
-    void loadScenario();
+     loadScenario().catch((error) => {
+      console.error("Error loading scenario:", error);
+    });
   }, [viewerReady, currentScenario]); 
 
   /* --------------------------------------------------
