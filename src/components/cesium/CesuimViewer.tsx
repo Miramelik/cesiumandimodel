@@ -19,6 +19,7 @@ import {
   import {
     updateBusBufferRadius,
     getBusStats,
+    setOnBufferUpdated,
     type BusStats,
   } from "../../scenarios/bus/BusScenario";
 
@@ -206,6 +207,23 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
        if (currentScenario==="bus") {
         setBufferRadius(400); //reset to default
         setBusStats(await getBusStats());
+
+        setOnBufferUpdated((datasource, radius)=> {
+          console.log("Buffer updated callback triggered", radius);
+        setLayers((prevLayers)=> {
+          const updated = prevLayers.map((layer)=> {
+            if (layer.id === "bus_buffer") {
+              return {
+                ...layer,
+                name: `Buffer (${radius}m)`,
+                datasource: datasource,
+              };
+            }
+            return layer;
+          });
+          return updated;
+        });
+        });
        } else {
         setBusStats(null);
        }

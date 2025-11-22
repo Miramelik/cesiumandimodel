@@ -8,6 +8,7 @@ import  {
  import * as turf from "@turf/turf";
 import type { LoadedLayer } from "../ScenarioManager";
 import { buffer } from "stream/consumers";
+import { on } from "events";
 
 
 // --------- Types for stats exposed to React ---------
@@ -30,9 +31,12 @@ let bufferDataSource: GeoJsonDataSource | null = null;
 let buildingsTileset: Cesium3DTileset | null = null;
 let lastBufferedPolygon: any = null;
 let busViewer: Viewer | null = null;
+let currentBufferRadius: number = 400; //default 400m
 
 
 let tileVisibleCallback: ((title: any) => void) | null = null;
+
+let onBufferUpdatedCallback: ((datasource:GeoJsonDataSource, radius:number) => void) | null = null;
 
 let currentStats: BusStats = {
   total: 0,
@@ -51,7 +55,22 @@ const STATS_UPDATE_INTERVAL = 1000; // only update stats once per second
 //  - initBusScenario(viewer)  -> loads data + first buffer
 //  - updateBusBufferRadius(r) -> called by React slider
 //  - getBusStats()            -> used by React stats panel
+//  - cleanupBusScenario()     -> cleanup when switching scenarios
+//  - setOnBufferUpdated()     -> set callback for buffer updates
+//  - getCurrentBufferRadius() -> get current radius
 // --------------------------------------------------
+
+export function setOnBufferUpdated (callback: (datasource:GeoJsonDataSource, radius:number) => void) {
+  onBufferUpdatedCallback = callback;
+}
+
+export function getCurrentBufferRadius(): number {
+  return currentBufferRadius;
+}
+
+export function getBufferDataSource(): GeoJsonDataSource | null {
+  return bufferDataSource;
+}
 
 
 export async function initBusScenario(viewer: Viewer): Promise<LoadedLayer[]> {
@@ -62,7 +81,14 @@ export async function initBusScenario(viewer: Viewer): Promise<LoadedLayer[]> {
   buildingsInside.clear();
   buildingsOutside.clear();
   allBuildingIds.clear();
-  bufferDataSource = null;
+
+  if (bufferDataSource) {
+    try {
+      viewer.dataSources.remove(bufferDataSource);
+    } catch {}
+    bufferDataSource = null;
+  }
+    
   buildingsTileset = null;
   tileVisibleCallback = null;
   
@@ -141,10 +167,13 @@ export async function initBusScenario(viewer: Viewer): Promise<LoadedLayer[]> {
       }
       applyBuildingColorStyle();
 
+      currentBufferRadius = 400; //reset to default
+      await createBusBuffer(viewer, currentBufferRadius);
+
       if (bufferDataSource) {
         loaded.push({
           id: "bus_buffer",
-          name: "Bus Stop Buffer (400m)",
+          name: `Buffer (${currentBufferRadius}m)`,
           type: "GEOJSON",
           datasource: bufferDataSource,
           visible: true,
@@ -157,7 +186,7 @@ export async function initBusScenario(viewer: Viewer): Promise<LoadedLayer[]> {
     }
 
     //clean up function
-    export async function cleanupBusScenario(viewer: Viewer) {
+    export  function cleanupBusScenario(viewer: Viewer) {
       console.log("[BusScenario] cleanupBusScenario() called");
 
       if (bufferDataSource) {
@@ -189,10 +218,13 @@ export async function initBusScenario(viewer: Viewer): Promise<LoadedLayer[]> {
       buildingsTileset = null;
       lastBufferedPolygon = null;
       busViewer = null;
+      onBufferUpdatedCallback = null;
+      currentBufferRadius = 400;
+
 
       console.log ("[BusScenario] Cleanup complete");
     }
-    
+
 
 // called from react slider
 export async function updateBusBufferRadius(radiusMeters: number) {
@@ -201,7 +233,12 @@ export async function updateBusBufferRadius(radiusMeters: number) {
     return;
   }
   console.log("[BusScenario] updateBusBufferRadius:", radiusMeters);
+  currentBufferRadius = radiusMeters;
   await createBusBuffer(busViewer, radiusMeters);
+
+  if (onBufferUpdatedCallback && bufferDataSource) {
+    onBufferUpdatedCallback(bufferDataSource, radiusMeters);
+  }
 }
 
 //Stats getter for React
@@ -272,7 +309,7 @@ export async function createBusBuffer(viewer: Viewer, radiusMeters: number) {
       clampToGround: true,
     });
     
-      bufferDataSource.name = `Buffer (${radiusMeters} m)`;
+      bufferDataSource.name = `Bus Stop Buffer (${radiusMeters} m)`;
       viewer.dataSources.add(bufferDataSource);
        console.log("[BusScenario] Buffer added to viewer, features:", buffered.features.length);
   } catch (e) {
