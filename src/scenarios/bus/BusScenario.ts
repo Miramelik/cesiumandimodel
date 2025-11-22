@@ -7,6 +7,7 @@ import  {
  } from "cesium";
  import * as turf from "@turf/turf";
 import type { LoadedLayer } from "../ScenarioManager";
+import { buffer } from "stream/consumers";
 
 
 // --------- Types for stats exposed to React ---------
@@ -139,11 +140,59 @@ export async function initBusScenario(viewer: Viewer): Promise<LoadedLayer[]> {
         buildingsTileset = null;
       }
       applyBuildingColorStyle();
-      await createBusBuffer(viewer, 400);
 
+      if (bufferDataSource) {
+        loaded.push({
+          id: "bus_buffer",
+          name: "Bus Stop Buffer (400m)",
+          type: "GEOJSON",
+          datasource: bufferDataSource,
+          visible: true,
+        });
+        console.log("[BusScenario] Buffer layer added to loaded list");
+      
+      }
       console.log("[BusScenario] initBusScenario() finished");
       return loaded;
     }
+
+    //clean up function
+    export async function cleanupBusScenario(viewer: Viewer) {
+      console.log("[BusScenario] cleanupBusScenario() called");
+
+      if (bufferDataSource) {
+        try {
+          viewer.dataSources.remove(bufferDataSource);
+        } catch (e){
+          console.warn("[BusScenario] Error removing buffer datasource", e);
+        }
+        bufferDataSource = null;
+      }
+
+      //Remove tile visible listener
+      if (tileVisibleCallback && buildingsTileset) {
+        try {
+          buildingsTileset.tileVisible.removeEventListener(tileVisibleCallback);
+        } catch (e){
+          console.warn("[BusScenario] Error removing tileVisible listener", e);
+        }
+        tileVisibleCallback = null;
+      }
+
+      //clear sets
+      buildingsInside.clear();
+      buildingsOutside.clear();
+      allBuildingIds.clear();
+
+      //clear references
+      busStopsJson = null;
+      buildingsTileset = null;
+      lastBufferedPolygon = null;
+      busViewer = null;
+
+      console.log ("[BusScenario] Cleanup complete");
+    }
+    
 
 // called from react slider
 export async function updateBusBufferRadius(radiusMeters: number) {

@@ -1,11 +1,11 @@
 import type { Viewer, Cesium3DTileset } from "cesium";
 import type { GeoJsonDataSource } from "cesium";
 
-import { LayerType, ScenarioLayer } from "./SCENARIOS";
-import { initIFCScenario, toggleIFCLayer } from "./ifc/IFCScenario";
-import { initBusScenario, toggleBusLayer } from "./bus/BusScenario";
-import { initNoiseScenario, toggleNoiseLayer } from "./noise/NoiseScenario";
-import { initEnergyScenario, toggleEnergyLayer } from "./energy/EnergyScenario";
+import { LayerType } from "./SCENARIOS";
+import { initIFCScenario } from "./ifc/IFCScenario";
+import { initBusScenario, cleanupBusScenario  } from "./bus/BusScenario";
+import { initNoiseScenario } from "./noise/NoiseScenario";
+import { initEnergyScenario} from "./energy/EnergyScenario";
 
 
 export type ScenarioId = "ifc" | "bus" | "noise" | "energy";
@@ -36,6 +36,11 @@ export class ScenarioManager {
     id: ScenarioId,
     viewer: Viewer
   ): Promise<LoadedLayer[]> {
+
+    try {
+      cleanupBusScenario(viewer);
+    } catch {}
+    
     switch (id) {
       case "bus":
         return initBusScenario(viewer);
