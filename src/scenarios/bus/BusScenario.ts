@@ -7,9 +7,6 @@ import  {
  } from "cesium";
  import * as turf from "@turf/turf";
 import type { LoadedLayer } from "../ScenarioManager";
-import { buffer } from "stream/consumers";
-import { on } from "events";
-
 
 // --------- Types for stats exposed to React ---------
 export interface BusStats {
@@ -32,6 +29,7 @@ let buildingsTileset: Cesium3DTileset | null = null;
 let lastBufferedPolygon: any = null;
 let busViewer: Viewer | null = null;
 let currentBufferRadius: number = 400; //default 400m
+let bufferUnionPolygon: any = null;
 
 
 let tileVisibleCallback: ((title: any) => void) | null = null;
@@ -91,6 +89,7 @@ export async function initBusScenario(viewer: Viewer): Promise<LoadedLayer[]> {
     
   buildingsTileset = null;
   tileVisibleCallback = null;
+  bufferDataSource = null;
   
   const loaded: LoadedLayer[] = [];
   
@@ -152,8 +151,45 @@ export async function initBusScenario(viewer: Viewer): Promise<LoadedLayer[]> {
                const f = content.getFeature(i);
                try {
                  const gmlId = f.getProperty("gml:id");
-                 if (gmlId) allBuildingIds.add(String(gmlId));
-               } catch {}
+                 if (gmlId) {
+                  allBuildingIds.add(String(gmlId));
+
+                  if (bufferUnionPolygon) {
+                    const lat = f.getProperty("Latitude");
+                    const lon = f.getProperty("Longitude");
+
+                    if (lat != null && lon != null) {
+                      const halfsize = 0.00018;
+                      let inside = false;
+
+                      try {
+                        const buildingBbox = turf.bboxPolygon([
+                          lon - halfsize, lat - halfsize,
+                          lon + halfsize, lat + halfsize,
+                        ]);
+                        inside = turf.booleanIntersects(buildingBbox, bufferUnionPolygon);
+                      } catch (e) {
+                        // fallback: if booleanIntersects fails, set false and continue
+                        try {
+                          const point = turf.point([lon, lat]);
+                          inside = turf.booleanPointInPolygon(point, bufferUnionPolygon);
+                        } catch {}
+                      }
+
+                      f.setProperty("is_near_busstop", inside);
+
+                      const gmlIdStr = String(gmlId);
+                      if (inside) {
+                        buildingsInside.add(gmlIdStr);
+                        buildingsOutside.delete(gmlIdStr);
+                      } else {
+                        buildingsOutside.add(gmlIdStr);
+                        buildingsInside.delete(gmlIdStr);
+                      }
+                    }
+                  }
+                }
+              } catch  {}
              }
           //Throttle stats updates
           scheduleStatsUpdate();
@@ -220,6 +256,7 @@ export async function initBusScenario(viewer: Viewer): Promise<LoadedLayer[]> {
       busViewer = null;
       onBufferUpdatedCallback = null;
       currentBufferRadius = 400;
+      bufferUnionPolygon = null;
 
 
       console.log ("[BusScenario] Cleanup complete");
@@ -251,16 +288,18 @@ function scheduleStatsUpdate() {
 
   const now = Date.now();
   if (now - lastStatsUpdate >= STATS_UPDATE_INTERVAL) {
+    updateStats();
+    lastStatsUpdate = now;
     return;
   }
 
   statsUpdateTimeout = true;
-  lastStatsUpdate = now;
 
   setTimeout(() => {
     updateStats();
     statsUpdateTimeout = false;
-  }, 100);
+    lastStatsUpdate = Date.now();
+  }, STATS_UPDATE_INTERVAL - (now - lastStatsUpdate));
 }
 
 //
@@ -300,6 +339,46 @@ export async function createBusBuffer(viewer: Viewer, radiusMeters: number) {
   }
   lastBufferedPolygon = buffered;
 
+
+  bufferUnionPolygon = null;
+
+  try {
+    const validFeatures = buffered.features.filter((f: any) => {
+      if (!f || !f.geometry || !f.geometry.coordinates) return false;
+
+      if (f.geometry.type === "Polygon") {
+        const coords = f.geometry.coordinates[0];
+        return coords && coords.length >= 4;
+      }
+
+      if (f.geometry.type === "MultiPolygon") {
+        return f.geometry.coordinates.length > 0;
+      }
+      return false;
+    });
+
+    console.log(`[BusScenario] Valid buffer features: ${validFeatures.length}`);
+
+    if (validFeatures.length > 0) {
+      bufferUnionPolygon = validFeatures[0];
+
+      for (let i = 1; i < validFeatures.length; i++) {
+        try {
+          const result = turf.union(bufferUnionPolygon, validFeatures[i]);
+
+          if (result) {
+            bufferUnionPolygon = result;
+          }
+         } catch (e) {
+               console.warn(`[BusScenario] Union failed for feature ${i}:`, e);
+          }
+        }
+      }
+    }  catch (e) {
+        console.error("[BusScenario] Error creating union polygon:", e);
+        }
+      
+
   try {
     // Load into Cesium as polygons
     bufferDataSource = await GeoJsonDataSource.load(buffered as any, {
@@ -309,25 +388,78 @@ export async function createBusBuffer(viewer: Viewer, radiusMeters: number) {
       clampToGround: true,
     });
     
-      bufferDataSource.name = `Bus Stop Buffer (${radiusMeters} m)`;
+      bufferDataSource.name = `Buffer (${radiusMeters}m)`;
       viewer.dataSources.add(bufferDataSource);
-       console.log("[BusScenario] Buffer added to viewer, features:", buffered.features.length);
+      console.log("[BusScenario] Buffer added to viewer");
   } catch (e) {
      console.error("[BusScenario] Failed to load buffer into GeoJsonDataSource:", e);
       return;
   }
 
-  try {
-    updateBuildingIntersection(buffered, viewer);
-  }
-    catch (e) {
-    console.error("[BusScenario] updateBuildingIntersection failed:", e);
-    }
+// -----------------------------------------------
+  // Re-evaluate ALL buildings with new buffer
+  // -----------------------------------------------
+  if (buildingsTileset && bufferUnionPolygon) {
+    console.log("[BusScenario] Re-evaluating building colors...");
     
+    buildingsInside.clear();
+    buildingsOutside.clear();
+    
+    // Force re-evaluation of all currently loaded tiles
+    const tiles = (buildingsTileset as any)._selectedTiles || [];
+    tiles.forEach((tile: any) => {
+      if (tile.content && tile.content.featuresLength) {
+        const content = tile.content;
+        const len = content.featuresLength;
+        
+        for (let i = 0; i < len; i++) {
+          const feature = content.getFeature(i);
+          if (!feature) continue;
+          
+          const gmlId = feature.getProperty("gml:id");
+          if (!gmlId) continue;
+          
+          const lat = feature.getProperty("Latitude");
+          const lon = feature.getProperty("Longitude");
+          if (lat == null || lon == null) continue;
+          
+          const halfSize = 0.00018;
+          let inside = false;
+          
+          try {
+            const buildingBbox = turf.bboxPolygon([
+              lon - halfSize, lat - halfSize,
+              lon + halfSize, lat + halfSize
+            ]);
+            inside = turf.booleanIntersects(buildingBbox, bufferUnionPolygon);
+          } catch {
+            try {
+              const point = turf.point([lon, lat]);
+              inside = turf.booleanPointInPolygon(point, bufferUnionPolygon);
+            } catch {}
+          }
+          
+          feature.setProperty("is_near_busstop", inside);
+          
+          const gmlIdStr = String(gmlId);
+          if (inside) {
+            buildingsInside.add(gmlIdStr);
+            buildingsOutside.delete(gmlIdStr);
+          } else {
+            buildingsOutside.add(gmlIdStr);
+            buildingsInside.delete(gmlIdStr);
+          }
+        }
+      }
+    });
+    
+    viewer.scene.requestRender();
+    updateStats();
+  }
 }
 
-//
-// =========================================================
+
+  // =========================================================
 //  BUILDING SYMBOLOGY & CLASSIFICATION
 // =========================================================
 //
@@ -346,167 +478,6 @@ function applyBuildingColorStyle() {
   console.log("[BusScenario] Building style applied");
 }
 
-function updateBuildingIntersection(buffered: any, viewer: Viewer) {
-  if (!buildingsTileset) {
-    console.warn("[BusScenario] updateBuildingIntersection: buildingsTileset missing");
-    return;
-  }
-
-    if (!buffered || !buffered.features || buffered.features.length === 0) {
-    console.warn("[BusScenario] updateBuildingIntersection: buffer invalid");
-    return;
-  }
-
-  console.log("[BusScenario] updateBuildingIntersection: starting");
-
-  buildingsInside.clear();
-  buildingsOutside.clear();
-
-  //Union all buffer polygons into one
-  let unionPolygon: any=null;
-
-  try {
-    const validFeatures = buffered.features.filter((f: any) => {
-      try {
-        if (!f || !f.geometry || !f.geometry.coordinates) return false;
-
-        if (f.geometry.type === "Polygon") {
-          const coords = f.geometry.coordinates[0];
-          return coords && coords.length >= 4;
-        }
-
-        if (f.geometry.type === "MultiPolygon") {
-          return f.geometry.coordinates.length > 0;
-        }
-        return false;
-      } catch {
-        return false;
-      }
-    });
-
-    console.log(`[BusScenario] Valid features: ${validFeatures.length} out of ${buffered.features.length}`);
-
-    if (validFeatures.length === 0) {
-      console.warn("[BusScenario] No valid features to union; aborting.");
-      return;
-        }
-
-    if (validFeatures.length ===1) {
-      unionPolygon = validFeatures[0];
-    } else {
-      unionPolygon = validFeatures[0];
-
-      for (let i = 1; i < validFeatures.length; i++) {
-        try {
-          const nextFeature = validFeatures[i];
-          const result = turf.union(unionPolygon, nextFeature);
-
-          if (result) {
-            unionPolygon = result;
-          } else {
-               console.warn(`[BusScenario] Union returned null for feature ${i}`);
-          }
-        } catch (e) {
-          console.warn(`[BusScenario] Turf union failed for feature index ${i}:`, e);
-          // Continue with current union result
-        }
-      }
-    }
-
-    if (!unionPolygon) {
-      console.warn("[BusScenario] Failed to create union polygon, using first valid feature");
-      unionPolygon = validFeatures[0];
-    }
-  } catch (e) {
-    console.error("[BusScenario] Critical error in union process:", e);
-    return;
-  }
-
-   
-
-  if (tileVisibleCallback && buildingsTileset) {
-    try {
-      buildingsTileset.tileVisible.removeEventListener( tileVisibleCallback);
-    } catch {}
-  }
-  tileVisibleCallback = (tile : any) => {
-    try {
-      const content = tile.content;
-      const count = content.featuresLength ?? 0;
-    
-      for (let i = 0; i < count; i++) {
-        const feature = content.getFeature(i);
-         if (!feature) continue;
-
-        const gmlId = feature.getProperty("gml:id");
-        if (!gmlId) continue;
-
-        const lat = feature.getProperty("Latitude");
-        const lon = feature.getProperty("Longitude");
-        if (lat == null || lon == null) continue;
-
-        const half = 0.00018;
-        let bbox: any;
-        try {
-          const bbox = turf.bboxPolygon([
-            lon - half,
-            lat - half,
-            lon + half,
-            lat + half,
-          ]);
-      } catch (e) {
-        console.warn(`[BusScenario] Failed to create bbox for building ${gmlId}:`, e);
-        continue;
-      }
-
-        let inside = false;
-        try {
-          inside = turf.booleanIntersects(bbox, unionPolygon);
-        } catch (e) {
-          // fallback: if booleanIntersects fails, set false and continue
-          try {
-            const point = turf.point([lon, lat]);
-            inside = turf.booleanPointInPolygon(point, unionPolygon);
-          } catch (e2) {
-          console.warn(`[BusScenario] Both intersection methods failed for building ${gmlId}`);
-          inside = false;
-        }
-      }
-      
-        feature.setProperty("is_near_busstop", inside);
-
-        const gmlIdStr = String(gmlId);
-                if (inside) {
-                  buildingsInside.add(gmlIdStr);
-                  buildingsOutside.delete(gmlIdStr);
-                }
-                else {
-                  buildingsOutside.add(gmlIdStr);
-                  buildingsInside.delete(gmlIdStr);
-                }
-              }
-    }
-      catch (e) {
-      console.error("[BusScenario] tileVisible handler error:", e);
-    }
-
-    //Throttle stats updates
-    scheduleStatsUpdate();
-
-    try {
-      viewer.scene.requestRender(); 
-      }
-    catch {}
-  };
-
-  if (buildingsTileset) {buildingsTileset.tileVisible.addEventListener(tileVisibleCallback);}
-  console.log("[BusScenario] updateBuildingIntersection: finished (listener attached)");
-
-  //Force initial stats update
-  updateStats();
-}
-
-
 function updateStats() {
   const total = allBuildingIds.size;
   const inside = buildingsInside.size;
@@ -522,6 +493,8 @@ function updateStats() {
 
   console.log("[BusScenario] Stats updated:", currentStats);
 }
+
+
 //
 // =========================================================
 //  LAYER TOGGLING (ScenarioManager calls this)
