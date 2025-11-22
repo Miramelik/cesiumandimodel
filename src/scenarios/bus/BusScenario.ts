@@ -40,6 +40,11 @@ let currentStats: BusStats = {
   coveragePercent: 0,
 };
 
+//Throtle mechanism for stats updates
+let statsUpdateTimeout = false;
+let lastStatsUpdate = 0;
+const STATS_UPDATE_INTERVAL = 1000; // only update stats once per second
+
 // --------------------------------------------------
 //  PUBLIC API
 //  - initBusScenario(viewer)  -> loads data + first buffer
@@ -51,6 +56,14 @@ let currentStats: BusStats = {
 export async function initBusScenario(viewer: Viewer): Promise<LoadedLayer[]> {
   console.log("[BusScenario] initBusScenario() start");
   busViewer = viewer;
+
+  //Reset state
+  buildingsInside.clear();
+  buildingsOutside.clear();
+  allBuildingIds.clear();
+  bufferDataSource = null;
+  buildingsTileset = null;
+  tileVisibleCallback = null;
   
   const loaded: LoadedLayer[] = [];
   
@@ -103,27 +116,22 @@ export async function initBusScenario(viewer: Viewer): Promise<LoadedLayer[]> {
              visible: true,
            });
 
-           if (tileVisibleCallback && buildingsTileset) {
-            try {
-              buildingsTileset.tileVisible.removeEventListener( tileVisibleCallback);
-            } catch {}
-            tileVisibleCallback = null;
-          }
+           //Initial collection of all building IDs (only one on load)
 
+           tileVisibleCallback = (tile : any) => {
+             const content = tile.content;
+             const len = content.featuresLength ?? 0;
+             for (let i = 0; i < len; i++) {
+               const f = content.getFeature(i);
+               try {
+                 const gmlId = f.getProperty("gml:id");
+                 if (gmlId) allBuildingIds.add(String(gmlId));
+               } catch {}
+             }
+          //Throttle stats updates
+          scheduleStatsUpdate();
+           };
 
-          tileVisibleCallback = (tile : any) => {
-            const content = tile.content;
-            const len = content.featuresLength ?? 0;
-            for (let i = 0; i < len; i++) {
-              const f = content.getFeature(i);
-              try {
-                const gmlId = f.getProperty("gml:id");
-                if (gmlId) allBuildingIds.add(String(gmlId));
-              } catch {}
-            }
-
-            updateStats();
-          };
           // Track all visible buildings and collect IDs
         buildingsTileset.tileVisible.addEventListener(tileVisibleCallback);
       } catch (e) {
@@ -151,6 +159,24 @@ export async function updateBusBufferRadius(radiusMeters: number) {
 export function getBusStats(): BusStats {
   return currentStats;
 }
+
+function scheduleStatsUpdate() {
+  if (statsUpdateTimeout) return;
+
+  const now = Date.now();
+  if (now - lastStatsUpdate >= STATS_UPDATE_INTERVAL) {
+    return;
+  }
+
+  statsUpdateTimeout = true;
+  lastStatsUpdate = now;
+
+  setTimeout(() => {
+    updateStats();
+    statsUpdateTimeout = false;
+  }, 100);
+}
+
 //
 // =========================================================
 //  BUFFER CREATION (Turf.js)
@@ -321,15 +347,21 @@ function updateBuildingIntersection(buffered: any, viewer: Viewer) {
       catch (e) {
       console.error("[BusScenario] tileVisible handler error:", e);
     }
-    updateStats();
+
+    //Throttle stats updates
+    scheduleStatsUpdate();
+
     try {
       viewer.scene.requestRender(); 
       }
     catch {}
   };
 
-  if (buildingsTileset) buildingsTileset.tileVisible.addEventListener(tileVisibleCallback);
+  if (buildingsTileset) {buildingsTileset.tileVisible.addEventListener(tileVisibleCallback);}
   console.log("[BusScenario] updateBuildingIntersection: finished (listener attached)");
+
+  //Force initial stats update
+  updateStats();
 }
 
 

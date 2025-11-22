@@ -4,14 +4,12 @@ import { Viewer, Math as CesiumMath, HeadingPitchRange, Cesium3DTileset } from "
 export const flyToTilesetCustomView = (
   viewer: Viewer,
   tileset: Cesium3DTileset,
-  layer:any,  
   duration: number = 2
-) => {
-
-  
+) => {  
  if (!tileset?.boundingSphere) {
   console.warn("flyToTilesetCustomView: tileset has no bounding sphere");
   return};
+
   const bs = tileset.boundingSphere;
 
   viewer.camera.flyToBoundingSphere(bs, {
