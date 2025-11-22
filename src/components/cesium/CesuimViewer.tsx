@@ -24,6 +24,8 @@ import {
 
   import { ScenarioToolbar } from "../../scenarios/ScenarioToolbar";
 import { on } from "events";
+import { SCENARIOS,  ScenarioDefinition } from "../../scenarios/SCENARIOS";
+import { flyToTilesetCustomView } from "./CameraUtils";
 
 
 interface CesiumViewerProps {
@@ -127,13 +129,42 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
     * -------------------------------------------------- */
    useEffect(() => {
     if (!viewerReady || !viewerRef.current) return;
+    const viewer = viewerRef.current!;
 
     const loadScenario = async () => {
-       const viewer = viewerRef.current!;
        const scenarioId=currentScenario as ScenarioId;
+       const scenarioDef= SCENARIOS[scenarioId];
+       if (!scenarioDef) return;
+
+       layers.forEach((layer) => {
+        // Clean up existing layers
+        if (layer.tileset) {
+          viewer.scene.primitives.remove(layer.tileset);
+        }
+        if (layer.datasource) {
+          viewer.dataSources.remove(layer.datasource);
+        }
+      });
 
        const newLayers = await ScenarioManager.loadScenario(scenarioId, viewer);
        setLayers(newLayers);
+
+       // Build a flat array of Cesium objects (tilesets or dataSources)
+       const cesiumObjects = newLayers
+         .map(l => l.tileset || l.datasource)
+         .filter(Boolean) as any[];
+
+       if (cesiumObjects.length > 0) {
+         if (scenarioDef.options?.cameraPreset === "iso" && newLayers.some(l => l.tileset)) {
+           // find first tileset from loaded layers
+           const firstTileset = newLayers.find(l => l.tileset)?.tileset;
+           if (firstTileset) {
+             flyToTilesetCustomView(viewer, firstTileset, 2);
+           }
+         } else {
+           await viewer.flyTo(cesiumObjects, { duration: 2 });
+         }
+       }
 
        if (currentScenario==="bus") {
         setBufferRadius(400); //reset to default
