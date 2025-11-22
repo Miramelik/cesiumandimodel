@@ -366,26 +366,63 @@ function updateBuildingIntersection(buffered: any, viewer: Viewer) {
   let unionPolygon: any=null;
 
   try {
-    if (buffered.features.length === 1) {
-      unionPolygon = buffered.features[0];
-    } else  {
-      unionPolygon = buffered.features[0];
-      for (let i = 1; i < buffered.features.length; i++) {
-        try {
-          unionPolygon = turf.union(unionPolygon, buffered.features[i]);
+    const validFeatures = buffered.features.filter((f: any) => {
+      try {
+        if (!f || !f.geometry || !f.geometry.coordinates) return false;
+
+        if (f.geometry.type === "Polygon") {
+          const coords = f.geometry.coordinates[0];
+          return coords && coords.length >= 4;
         }
-        catch (e) {
-          console.warn("[BusScenario] Turf union failed for polygon index", i, e);
+
+        if (f.geometry.type === "MultiPolygon") {
+          return f.geometry.coordinates.length > 0;
         }
+        return false;
+      } catch {
+        return false;
       }
-      if (!unionPolygon) {
-        unionPolygon = buffered;
+    });
+
+    console.log(`[BusScenario] Valid features: ${validFeatures.length} out of ${buffered.features.length}`);
+
+    if (validFeatures.length === 0) {
+      console.warn("[BusScenario] No valid features to union; aborting.");
+      return;
+        }
+
+    if (validFeatures.length ===1) {
+      unionPolygon = validFeatures[0];
+    } else {
+      unionPolygon = validFeatures[0];
+
+      for (let i = 1; i < validFeatures.length; i++) {
+        try {
+          const nextFeature = validFeatures[i];
+          const result = turf.union(unionPolygon, nextFeature);
+
+          if (result) {
+            unionPolygon = result;
+          } else {
+               console.warn(`[BusScenario] Union returned null for feature ${i}`);
+          }
+        } catch (e) {
+          console.warn(`[BusScenario] Turf union failed for feature index ${i}:`, e);
+          // Continue with current union result
+        }
       }
     }
+
+    if (!unionPolygon) {
+      console.warn("[BusScenario] Failed to create union polygon, using first valid feature");
+      unionPolygon = validFeatures[0];
+    }
   } catch (e) {
-    console.warn("[BusScenario] union building buffer failed; using full feature collection fallback", e);
-    unionPolygon = buffered; 
+    console.error("[BusScenario] Critical error in union process:", e);
+    return;
   }
+
+   
 
   if (tileVisibleCallback && buildingsTileset) {
     try {
@@ -409,26 +446,45 @@ function updateBuildingIntersection(buffered: any, viewer: Viewer) {
         if (lat == null || lon == null) continue;
 
         const half = 0.00018;
-        const bbox = turf.bboxPolygon([
-          lon - half,
-          lat - half,
-          lon + half,
-          lat + half,
-        ]);
+        let bbox: any;
+        try {
+          const bbox = turf.bboxPolygon([
+            lon - half,
+            lat - half,
+            lon + half,
+            lat + half,
+          ]);
+      } catch (e) {
+        console.warn(`[BusScenario] Failed to create bbox for building ${gmlId}:`, e);
+        continue;
+      }
 
         let inside = false;
         try {
           inside = turf.booleanIntersects(bbox, unionPolygon);
         } catch (e) {
           // fallback: if booleanIntersects fails, set false and continue
-          console.warn("[BusScenario] booleanIntersects failed for bbox:", e);
+          try {
+            const point = turf.point([lon, lat]);
+            inside = turf.booleanPointInPolygon(point, unionPolygon);
+          } catch (e2) {
+          console.warn(`[BusScenario] Both intersection methods failed for building ${gmlId}`);
           inside = false;
         }
-
-        feature.setProperty("is_near_busstop", inside);
-        if (inside) buildingsInside.add(String(gmlId));
-        else buildingsOutside.add(String(gmlId));
       }
+      
+        feature.setProperty("is_near_busstop", inside);
+
+        const gmlIdStr = String(gmlId);
+                if (inside) {
+                  buildingsInside.add(gmlIdStr);
+                  buildingsOutside.delete(gmlIdStr);
+                }
+                else {
+                  buildingsOutside.add(gmlIdStr);
+                  buildingsInside.delete(gmlIdStr);
+                }
+              }
     }
       catch (e) {
       console.error("[BusScenario] tileVisible handler error:", e);
