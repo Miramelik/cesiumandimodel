@@ -340,7 +340,7 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
 
       {layers.map((layer, index) => (
         <div
-          key={layer.id}
+          key={`layer-${String(layer.id)}-${layer.name}-${index}`}
           style={{
             padding: "6px 10px",
             marginBottom: "6px",
