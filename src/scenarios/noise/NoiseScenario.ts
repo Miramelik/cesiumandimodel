@@ -24,7 +24,16 @@ export async function initNoiseScenario(viewer: Viewer): Promise<LoadedLayer[]> 
     });
 
     noiseData.name = "Noise Areas";
-
+    
+    const entities = noiseData.entities.values;
+    
+    for (let i = 0; i < entities.length; i++) {
+      const entity = entities[i];
+    
+      if (!entity.id){
+        entity.id = `noise_entity_${i}`;
+      }
+    }
     // ----------------------------------------------------
     // 2) Apply color symbology
     // ----------------------------------------------------
@@ -57,13 +66,13 @@ export async function initNoiseScenario(viewer: Viewer): Promise<LoadedLayer[]> 
  */
 function applyNoiseSymbology(dataSource: GeoJsonDataSource) {
   const entities = dataSource.entities.values;
-
   for (let i = 0; i < entities.length; i++) {
     const entity = entities[i];
 
-    if (!entity.id){
-      entity.id = `noise_entity_${i}`;
-    }
+    if (!entity.id) 
+      {
+        entity.id = `noise_entity_${i}`
+      };
     const props = entity.properties;
     if (!props || !entity.polygon) continue;
 
