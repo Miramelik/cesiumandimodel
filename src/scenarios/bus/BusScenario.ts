@@ -349,20 +349,28 @@ export async function createBusBuffer(viewer: Viewer, radiusMeters: number) {
     });
     console.log(`[BusScenario] Valid buffer features: ${validFeatures.length}`);
 
-    if (validFeatures.length> 0) {
-      let combinedFeature = turf.combine(turf.featureCollection(validFeatures)) as any;
-      const combinedCollection = turf.featureCollection([combinedFeature]) as any;
-      const dissolved = turf.dissolve(combinedCollection, {mutate: false} as any);
-
-      if (dissolved && dissolved.features.length > 0) {
-        bufferUnionPolygon = dissolved.features[0];
-        console.log(`[BusScenario] Successful union using dissolve. Type: ${bufferUnionPolygon.geometry.type}`);
+   if (validFeatures.length > 0) {
+      // Use turf.union to combine all polygons into one
+      let unionPolygon = validFeatures[0];
+      
+      for (let i = 1; i < validFeatures.length; i++) {
+        try {
+          unionPolygon = turf.union(turf.featureCollection([unionPolygon, validFeatures[i]])) as any;
+        } catch (unionError) {
+          console.warn(`[BusScenario] Failed to union feature ${i}, skipping:`, unionError);
+          continue;
+        }
+      }
+      
+      if (unionPolygon) {
+        bufferUnionPolygon = unionPolygon;
+        console.log(`[BusScenario] Successful union. Type: ${bufferUnionPolygon.geometry.type}`);
       } else {
-        console.error("[BusScenario] Dissolve failed to produce a valid union feature.");
+        console.error("[BusScenario] Union failed to produce a valid feature.");
       }
     }
   } catch (e) {
-    console.error("[BusScenario] Error creating union polygon (combine/dissolve failed):", e);
+    console.error("[BusScenario] Error creating union polygon (union failed):", e);
   }
 
 
