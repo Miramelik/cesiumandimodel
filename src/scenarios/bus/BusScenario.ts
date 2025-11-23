@@ -159,13 +159,13 @@ export async function initBusScenario(viewer: Viewer): Promise<LoadedLayer[]> {
                     const lon = f.getProperty("Longitude");
 
                     if (lat != null && lon != null) {
-                      const halfsize = 0.00018;
+                      const halfSize = 0.00018;
                       let inside = false;
 
                       try {
                         const buildingBbox = turf.bboxPolygon([
-                          lon - halfsize, lat - halfsize,
-                          lon + halfsize, lat + halfsize,
+                          lon - halfSize, lat - halfSize,
+                          lon + halfSize, lat + halfSize,
                         ]);
                         inside = turf.booleanIntersects(buildingBbox, bufferUnionPolygon);
                       } catch (e) {
@@ -345,39 +345,26 @@ export async function createBusBuffer(viewer: Viewer, radiusMeters: number) {
   try {
     const validFeatures = buffered.features.filter((f: any) => {
       if (!f || !f.geometry || !f.geometry.coordinates) return false;
-
-      if (f.geometry.type === "Polygon") {
-        const coords = f.geometry.coordinates[0];
-        return coords && coords.length >= 4;
-      }
-
-      if (f.geometry.type === "MultiPolygon") {
-        return f.geometry.coordinates.length > 0;
-      }
-      return false;
+      return f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon";
     });
-
     console.log(`[BusScenario] Valid buffer features: ${validFeatures.length}`);
 
-    if (validFeatures.length > 0) {
-      bufferUnionPolygon = validFeatures[0];
+    if (validFeatures.length> 0) {
+      let combinedFeature = turf.combine(turf.featureCollection(validFeatures)) as any;
+      const combinedCollection = turf.featureCollection([combinedFeature]) as any;
+      const dissolved = turf.dissolve(combinedCollection, {mutate: false} as any);
 
-      for (let i = 1; i < validFeatures.length; i++) {
-        try {
-          const result = turf.union(bufferUnionPolygon, validFeatures[i]);
-
-          if (result) {
-            bufferUnionPolygon = result;
-          }
-         } catch (e) {
-               console.warn(`[BusScenario] Union failed for feature ${i}:`, e);
-          }
-        }
+      if (dissolved && dissolved.features.length > 0) {
+        bufferUnionPolygon = dissolved.features[0];
+        console.log(`[BusScenario] Successful union using dissolve. Type: ${bufferUnionPolygon.geometry.type}`);
+      } else {
+        console.error("[BusScenario] Dissolve failed to produce a valid union feature.");
       }
-    }  catch (e) {
-        console.error("[BusScenario] Error creating union polygon:", e);
-        }
-      
+    }
+  } catch (e) {
+    console.error("[BusScenario] Error creating union polygon (combine/dissolve failed):", e);
+  }
+
 
   try {
     // Load into Cesium as polygons
