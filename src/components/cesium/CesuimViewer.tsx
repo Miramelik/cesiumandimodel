@@ -271,13 +271,20 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
     * -------------------------------------------------- */
   
   const toggleLayerVisibility = (index:number)=>{
-    if (!viewerRef.current) return;
+    if (!viewerRef.current || !currentScenario) return;
 
-    setLayers((prev)=> {
-       const updated = [...prev];
+    if (currentScenario === "ifc") {
+      setLayers ((prev)=>
+      ScenarioManager.toggleIFCLayer (prev, index, viewerRef.current)
+    );
+    return;
+    }
+
+    setLayers ((prev) => {
+      const updated = [...prev];
       const clicked = updated[index];
 
-      if (!clicked) return prev;
+      if  (!clicked) return prev;
 
       clicked.visible = !clicked.visible;
 
@@ -287,8 +294,9 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
       viewerRef.current?.scene.requestRender();
 
       return updated;
-    }); 
-        
+    })
+
+   
   };
 
     /* --------------------------------------------------

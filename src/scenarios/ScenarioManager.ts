@@ -2,7 +2,7 @@ import type { Viewer, Cesium3DTileset } from "cesium";
 import type { GeoJsonDataSource } from "cesium";
 
 import { LayerType } from "./SCENARIOS";
-import { initIFCScenario } from "./ifc/IFCScenario";
+import { initIFCScenario, toggleIFCLayer } from "./ifc/IFCScenario";
 import { initBusScenario, cleanupBusScenario  } from "./bus/BusScenario";
 import { initNoiseScenario, cleanupNoiseScenario } from "./noise/NoiseScenario";
 import { initEnergyScenario} from "./energy/EnergyScenario";
@@ -60,4 +60,6 @@ export class ScenarioManager {
         return initIFCScenario(viewer);
     }
   }
+
+  static toggleIFCLayer = toggleIFCLayer;
 }
