@@ -4,7 +4,7 @@ import type { GeoJsonDataSource } from "cesium";
 import { LayerType } from "./SCENARIOS";
 import { initIFCScenario } from "./ifc/IFCScenario";
 import { initBusScenario, cleanupBusScenario  } from "./bus/BusScenario";
-import { initNoiseScenario } from "./noise/NoiseScenario";
+import { initNoiseScenario, cleanupNoiseScenario } from "./noise/NoiseScenario";
 import { initEnergyScenario} from "./energy/EnergyScenario";
 
 
@@ -39,6 +39,10 @@ export class ScenarioManager {
 
     try {
       cleanupBusScenario(viewer);
+    } catch {}
+
+    try {
+      cleanupNoiseScenario(viewer);
     } catch {}
     
     switch (id) {

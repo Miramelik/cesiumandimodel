@@ -23,9 +23,15 @@ import {
     type BusStats,
   } from "../../scenarios/bus/BusScenario";
 
+  import {
+    getNoiseStats,
+    type NoiseStats,
+  } from "../../scenarios/noise/NoiseScenario";
+
   import { ScenarioToolbar } from "../../scenarios/ScenarioToolbar";
 import { SCENARIOS } from "../../scenarios/SCENARIOS";
 import { flyToTilesetCustomView } from "./CameraUtils";
+import { from } from "@itwin/components-react";
 
 
 interface CesiumViewerProps {
@@ -46,6 +52,7 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
    //Bus specific state
    const [bufferRadius, setBufferRadius]= useState<number>(400); //meters
    const [busStats, setBusStats]= useState<BusStats |null>(null);
+   const [noiseStats, setNoiseStats]= useState<NoiseStats |null>(null);
    
 
 /* --------------------------------------------------
@@ -224,8 +231,19 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
           return updated;
         });
         });
-       } else {
+       } else if (currentScenario==="noise") {
+        setNoiseStats(await getNoiseStats());
+
+        const statsInterval = setInterval (()=> {
+          setNoiseStats(getNoiseStats());
+        }, 1500);
+        
+        return () => clearInterval(statsInterval);
+
+       }
+       else {
         setBusStats(null);
+        setNoiseStats(null);
        }
        console.log(`✅ Scenario loaded: ${scenarioId}, ${newLayers.length} layers`);
     };
@@ -441,6 +459,58 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
             </div>
           </div>        
       )}
+
+      {/* --- NOISE-SPECIFIC UI: STATS + LEGEND --- */}
+{currentScenario === "noise" && noiseStats && (
+  <>
+    <div
+      style={{
+        padding: "10px",
+        background: "white",
+        borderRadius: "8px",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+        fontSize: "0.9rem",
+      }}
+    >
+      <strong>Building Statistics</strong>
+      <div style={{ marginTop: "8px" }}>
+        <div>Total buildings: <b>{noiseStats.total}</b></div>
+        <div style={{ marginTop: "4px" }}>High noise zone: <b>{noiseStats.insideHigh}</b></div>
+        <div style={{ marginTop: "4px" }}>Medium noise zone: <b>{noiseStats.insideMedium}</b></div>
+        <div style={{ marginTop: "4px" }}>Low noise zone: <b>{noiseStats.insideLow}</b></div>
+        <div style={{ marginTop: "4px" }}>Outside noise zones: <b>{noiseStats.outsideHigh}</b></div>
+        <div style={{ marginTop: "4px" }}>High noise coverage: <b>{noiseStats.coveragePercent}%</b></div>
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "10px",
+        background: "white",
+        borderRadius: "8px",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+        fontSize: "0.9rem",
+        marginTop: "12px",
+      }}
+    >
+      <strong>Legend</strong>
+      <div style={{ marginTop: "8px" }}>
+        <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+          <div style={{ width: "14px", height: "14px", background: "#cc0000", borderRadius: "3px", marginRight: "8px" }}></div>
+          <span>High noise</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+          <div style={{ width: "14px", height: "14px", background: "#ff8800", borderRadius: "3px", marginRight: "8px" }}></div>
+          <span>Medium noise</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+          <div style={{ width: "14px", height: "14px", background: "#00aa00", borderRadius: "3px", marginRight: "8px" }}></div>
+          <span>Low noise</span>
+        </div>
+      </div>
+    </div>
+  </>
+)}
   </div>
   </div>
 
