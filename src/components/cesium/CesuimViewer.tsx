@@ -409,7 +409,7 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
               if (!viewer) return;
               // For 3D Tiles, use custom angled camera
               if (layer.type === "3DTILES" && layer.tileset) {
-                viewer.flyTo(layer.tileset, { duration: 1.5 } );
+                flyToTilesetCustomView(viewer, layer.tileset, 1.5);
               }
               // For GeoJSON, use viewer.flyTo on the datasource
               if (layer.type === "GEOJSON" && layer.datasource) {
