@@ -90,9 +90,17 @@ const App: React.FC = () => {
 
       {/*  CESIUM VIEWER — ALWAYS VISIBLE, FULL SCREEN */}
            <div 
-           style={{ width: "100%", height: "100vh" , overflow: "hidden"            
-           }}
-           >
+               style={{ 
+                  width: currentScenario === "ifc" ? "50%" : "100%", // <-- NEW
+                  height: "100vh",
+                  overflow: "hidden",
+                  position: "absolute",
+                  right: 0, // <-- NEW: Pin to the right side
+                  top: 0, // <-- NEW
+                  zIndex: 100, // Make sure it's under the iTwin panel (zIndex 5000)
+              }}
+              >
+              
               <CesiumViewer
               currentScenario={currentScenario} 
               onScenarioChange={setCurrentScenario}

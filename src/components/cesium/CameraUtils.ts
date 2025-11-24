@@ -17,7 +17,7 @@ export const flyToTilesetCustomView = (
     offset: new HeadingPitchRange(
       CesiumMath.toRadians(60),   // ← heading (rotate left/right)
       CesiumMath.toRadians(-35),  // ← pitch (camera tilt downward)
-      bs.radius * 2.20            // ← distance
+      bs.radius * 3.0           // ← distance
     ),
   });
 };

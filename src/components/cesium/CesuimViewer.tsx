@@ -149,6 +149,20 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
     }, []);
 
 
+    useEffect (()=>{
+      if (!viewerReady || !viewerRef.current) return;
+
+      const viewer = viewerRef.current;
+
+      const resizeTimeout = setTimeout(() =>{
+        viewer.resize();
+        viewer.scene.requestRender();
+      }, 150);
+
+      return() => clearTimeout(resizeTimeout);
+    }, [currentScenario, viewerReady]);
+
+
   /* --------------------------------------------------
     * 2. Load Layers when viewer is ready & scenario changes
     * -------------------------------------------------- */
