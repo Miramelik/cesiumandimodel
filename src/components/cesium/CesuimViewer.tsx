@@ -31,7 +31,6 @@ import {
   import { ScenarioToolbar } from "../../scenarios/ScenarioToolbar";
 import { SCENARIOS } from "../../scenarios/SCENARIOS";
 import { flyToTilesetCustomView } from "./CameraUtils";
-import { from } from "@itwin/components-react";
 
 
 interface CesiumViewerProps {
@@ -342,13 +341,13 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
     <div
       style={{
         position: "absolute",
-        top: "150px",
+        top: "100px",
         right: "15px",
         width: "260px",
         marginRight: "20px",
         display: "flex",
         flexDirection: "column",
-        gap: "12px",
+        gap: "5px",
         zIndex: 1000,
       }}
     >
@@ -420,15 +419,35 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
 
     {/* --- BUS-SPECIFIC UI: BUFFER + STATS --- */}
       {currentScenario === "bus" && (
+        <>
+        {/*Description Panrl*/}
         <div
           style={{
                padding: "10px",
             background: "white",
             borderRadius: "8px",
             boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+            fontSize: "0.85rem",
+          }}
+        >
+          <strong style={{ fontSize: "0.95rem" }}>Description</strong>
+          <div style={{ marginTop: "6px", lineHeight: "1.4", color: "#555" }}>
+            {SCENARIOS.bus.description}
+          </div>
+        </div>
+
+         {/* Buffer Settings */}
+        <div
+          style={{
+            padding: "10px",
+            background: "white",
+            borderRadius: "8px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
             fontSize: "0.9rem",
           }}
         >
+
+
           <strong>Bus Buffer Settings</strong>
           <div style={{ marginTop: "8px" }}>
             <label htmlFor="busBufferRange">Radius (m): </label>
@@ -446,74 +465,125 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
               <b>{bufferRadius}</b> m
             </div>
           </div>
+        </div>
 
-          <hr/>
-
+        {/* Building Statistics */}
+        <div
+          style={{
+            padding: "10px",
+            background: "white",
+            borderRadius: "8px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+            fontSize: "0.9rem",
+          }}
+        >
           <strong>Bus Stop Stats</strong>
-
-          <div style={{ marginTop: "4px" }}>
+          <div style={{ marginTop: "8px" }}>
             <div>Total: <b>{busStats?.total ?? 0}</b></div>
-            <div>Inside buffer: <b>{busStats?.inside ?? 0}</b></div>
-            <div>Outside buffer: <b>{busStats?.outside ?? 0}</b></div>
-            <div>Coverage: <b>{busStats?.coveragePercent ?? 0}%</b></div>
-            </div>
+            <div style={{ marginTop: "4px" }}>Inside buffer: <b>{busStats?.inside ?? 0}</b></div>
+            <div style={{ marginTop: "4px" }}>Outside buffer: <b>{busStats?.outside ?? 0}</b></div>
+            <div style={{ marginTop: "4px" }}>Coverage: <b>{busStats?.coveragePercent ?? 0}%</b></div>
+           </div>
           </div>        
-      )}
 
-      {/* --- NOISE-SPECIFIC UI: STATS + LEGEND --- */}
+          {/* Bus Legend */}
+        <div
+          style={{
+            padding: "10px",
+            background: "white",
+            borderRadius: "8px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+            fontSize: "0.9rem",
+          }}
+        >
+          <strong>Legend</strong>
+          <div style={{ marginTop: "8px" }}>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+              <div style={{ width: "14px", height: "14px", background: "#00aa00", borderRadius: "3px", marginRight: "8px" }}></div>
+              <span>Inside buffer</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+              <div style={{ width: "14px", height: "14px", background: "#cc0000", borderRadius: "3px", marginRight: "8px" }}></div>
+              <span>Outside buffer</span>
+            </div>
+          </div>
+        </div>
+      </>
+    )}
+      
+
+       {/* === NOISE SCENARIO UI === */}
 {currentScenario === "noise" && noiseStats && (
   <>
-    <div
-      style={{
-        padding: "10px",
-        background: "white",
-        borderRadius: "8px",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
-        fontSize: "0.9rem",
-      }}
-    >
-      <strong>Building Statistics</strong>
-      <div style={{ marginTop: "8px" }}>
-        <div>Total buildings: <b>{noiseStats.total}</b></div>
-        <div style={{ marginTop: "4px" }}>High noise zone: <b>{noiseStats.insideHigh}</b></div>
-        <div style={{ marginTop: "4px" }}>Medium noise zone: <b>{noiseStats.insideMedium}</b></div>
-        <div style={{ marginTop: "4px" }}>Low noise zone: <b>{noiseStats.insideLow}</b></div>
-        <div style={{ marginTop: "4px" }}>Outside noise zones: <b>{noiseStats.outsideHigh}</b></div>
-        <div style={{ marginTop: "4px" }}>High noise coverage: <b>{noiseStats.coveragePercent}%</b></div>
-      </div>
-    </div>
+    {/* Description Panel */}
+        <div
+          style={{
+            padding: "10px",
+            background: "white",
+            borderRadius: "8px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+            fontSize: "0.85rem",
+          }}
+        >
+          <strong style={{ fontSize: "0.95rem" }}>Description</strong>
+          <div style={{ marginTop: "6px", lineHeight: "1.4", color: "#555" }}>
+            {SCENARIOS.noise.description}
+          </div>
+        </div>
 
-    <div
-      style={{
-        padding: "10px",
-        background: "white",
-        borderRadius: "8px",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
-        fontSize: "0.9rem",
-        marginTop: "12px",
-      }}
-    >
+        {/* Building Statistics */}
+        <div
+          style={{
+            padding: "10px",
+            background: "white",
+            borderRadius: "8px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+            fontSize: "0.9rem",
+          }}
+        >
+
+
+      <strong>Building Statistics</strong>
+          <div style={{ marginTop: "8px" }}>
+            <div>Total buildings: <b>{noiseStats.total}</b></div>
+            <div style={{ marginTop: "4px" }}>High noise zone: <b>{noiseStats.insideHigh}</b></div>
+            <div style={{ marginTop: "4px" }}>Medium noise zone: <b>{noiseStats.insideMedium}</b></div>
+            <div style={{ marginTop: "4px" }}>Low noise zone: <b>{noiseStats.insideLow}</b></div>
+            <div style={{ marginTop: "4px" }}>Outside noise zones: <b>{noiseStats.outsideHigh}</b></div>
+            <div style={{ marginTop: "4px" }}>High noise coverage: <b>{noiseStats.coveragePercent}%</b></div>
+          </div>
+        </div>
+
+     {/* Noise Legend */}
+        <div
+          style={{
+            padding: "10px",
+            background: "white",
+            borderRadius: "8px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+            fontSize: "0.9rem",
+          }}
+        >
       <strong>Legend</strong>
-      <div style={{ marginTop: "8px" }}>
-        <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
-          <div style={{ width: "14px", height: "14px", background: "#cc0000", borderRadius: "3px", marginRight: "8px" }}></div>
-          <span>High noise</span>
+          <div style={{ marginTop: "8px" }}>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+              <div style={{ width: "14px", height: "14px", background: "#cc0000", borderRadius: "3px", marginRight: "8px" }}></div>
+              <span>High noise</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+              <div style={{ width: "14px", height: "14px", background: "#ff8800", borderRadius: "3px", marginRight: "8px" }}></div>
+              <span>Medium noise</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+              <div style={{ width: "14px", height: "14px", background: "#00aa00", borderRadius: "3px", marginRight: "8px" }}></div>
+              <span>Low noise</span>
+            </div>
+          </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
-          <div style={{ width: "14px", height: "14px", background: "#ff8800", borderRadius: "3px", marginRight: "8px" }}></div>
-          <span>Medium noise</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
-          <div style={{ width: "14px", height: "14px", background: "#00aa00", borderRadius: "3px", marginRight: "8px" }}></div>
-          <span>Low noise</span>
-        </div>
-      </div>
-    </div>
-  </>
-)}
+      </>
+    )}
   </div>
   </div>
 
 );
 };
-

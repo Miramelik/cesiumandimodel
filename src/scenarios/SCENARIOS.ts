@@ -36,7 +36,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
   bus: {
     id: "bus",
     title: "Bus Stops",
-    description: "Bus stops, routes, and related analytics.",
+    description: "This Scenario is about identifying which buildings are in the vicinity of different buffer zones around bus stops.",
     layers: [],
     options: {
       enablePicking: true,
@@ -53,7 +53,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
   noise: {
     id: "noise",
     title: "Noise Levels",
-    description: "Noise surfaces, noise points, and heatmaps.",
+    description: "This use case is about identifying which buildings are in the high noise zones around major roads.",
 
     layers: [],
 

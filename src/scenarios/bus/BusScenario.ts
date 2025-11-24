@@ -377,8 +377,8 @@ export async function createBusBuffer(viewer: Viewer, radiusMeters: number) {
   try {
     // Load into Cesium as polygons
     bufferDataSource = await GeoJsonDataSource.load(buffered as any, {
-      fill: Color.BLUE.withAlpha(0.25),
-      stroke: Color.BLUE,
+      fill: Color.YELLOW.withAlpha(0.25),
+      stroke: Color.YELLOW,
       strokeWidth: 2,
       clampToGround: true,
     });
