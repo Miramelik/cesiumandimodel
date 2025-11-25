@@ -31,16 +31,19 @@ import {
   import { ScenarioToolbar } from "../../scenarios/ScenarioToolbar";
 import { SCENARIOS } from "../../scenarios/SCENARIOS";
 import { flyToTilesetCustomView } from "./CameraUtils";
+import { IFCElementStats } from "../../scenarios/ifc/IFCElementQuery";
 
 
 interface CesiumViewerProps {
   currentScenario?: string;
   onScenarioChange?: (id: string) => void;
+  ifcStats ?: IFCElementStats | null;
 }
 
 export const CesiumViewer: React.FC <CesiumViewerProps> = ({
   currentScenario,
   onScenarioChange,
+  ifcStats,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
    const viewerRef = useRef<Viewer | null>(null);
@@ -604,6 +607,58 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
         </div>
       </>
     )}
+
+    {/* === IFC SCENARIO UI - DISPLAY ELEMENT STATS === */}
+    {currentScenario === "ifc" && (
+      <>
+        <div
+          style={{
+            padding: "10px",
+            background: "white",
+            borderRadius: "8px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+            fontSize: "0.85rem",
+          }}
+        >
+          <strong style={{ fontSize: "0.95rem" }}>Description</strong>
+          <div style={{ marginTop: "6px", lineHeight: "1.4", color: "#555" }}>
+            {SCENARIOS.ifc.description}
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "10px",
+            background: "white",
+            borderRadius: "8px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+            fontSize: "0.9rem",
+          }}
+        >
+          <strong>IFC Element Statistics</strong>
+          <div style={{ marginTop: "8px" }}>
+            {ifcStats ? (
+              <>
+                <div style={{ marginTop: "4px" }}>Walls: <b>{ifcStats.walls}</b></div>
+                <div style={{ marginTop: "4px" }}>Doors: <b>{ifcStats.doors}</b></div>
+                <div style={{ marginTop: "4px" }}>Windows: <b>{ifcStats.windows}</b></div>
+                <div style={{ marginTop: "4px" }}>Slabs: <b>{ifcStats.slabs}</b></div>
+                <div style={{ marginTop: "4px" }}>Columns: <b>{ifcStats.columns}</b></div>
+                <div style={{ marginTop: "4px" }}>Beams: <b>{ifcStats.beams}</b></div>
+                <div style={{ marginTop: "4px" }}>Spaces: <b>{ifcStats.spaces}</b></div>
+                <div style={{ marginTop: "4px" }}>Furniture: <b>{ifcStats.furniture}</b></div>
+              </>
+            ) : (
+              <div style={{ color: "#999", fontStyle: "italic" }}>
+                Loading IFC statistics...
+              </div>
+            )}
+          </div>
+        </div>
+      </>
+    )}
+
+
   </div>
   </div>
 

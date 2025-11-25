@@ -15,6 +15,8 @@ import { history } from "./history";
 import { ItwinViewer} from "./components/itwin/ITwinViewer";
 import { CesiumViewer } from "./components/cesium/CesuimViewer";
 import { ScenarioToolbar } from "./scenarios/ScenarioToolbar";
+import { IFCElementStats } from "./scenarios/ifc/IFCElementQuery";
+
 
   /** ------------------------------------------------------
    * 1. iTwin View IDs from ENV or URL
@@ -27,6 +29,7 @@ const App: React.FC = () => {
     process.env.IMJS_AUTH_CLIENT_CHANGESET_ID
   );
   const [currentScenario, setCurrentScenario] = useState<string>("bus");
+  const [ifcStats, setIfcStats] = useState <IFCElementStats | null> (null);
 
 
     /** ------------------------------------------------------
@@ -82,6 +85,14 @@ const App: React.FC = () => {
     history.push(url);
   }, [iTwinId, iModelId, changesetId]);
 
+  /**-------------------------
+   * Handle IFC stats update from ITWinViewer
+   *----------------------*/
+  const handleStatsUpdate = useCallback ((stats:IFCElementStats | null) => {
+    console.log ("IFC Stats recieved in App: ", stats);
+    setIfcStats (stats);
+  },[])
+
 
 
   return (
@@ -104,6 +115,7 @@ const App: React.FC = () => {
               <CesiumViewer
               currentScenario={currentScenario} 
               onScenarioChange={setCurrentScenario}
+              ifcStats = {ifcStats}
               />
           </div>
 
@@ -128,6 +140,7 @@ const App: React.FC = () => {
         iModelId={iModelId ?? ""}
         changesetId={changesetId}
         authClient={authClient}
+        onStatsUpdate={handleStatsUpdate}
         
       />
     </div>  

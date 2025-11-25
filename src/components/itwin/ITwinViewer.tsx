@@ -48,6 +48,7 @@ import { Auth } from "../../Auth";
 import { unifiedSelectionStorage } from "../../selectionStorage"
 import { log } from "console";
 import {Visualization} from "./utils/Visualization"
+import { IFCElementQuery, IFCElementStats } from "../../scenarios/ifc/IFCElementQuery";
 
 
 interface ItwinViewerProps {
@@ -55,13 +56,17 @@ interface ItwinViewerProps {
     iModelId: string;
     changesetId?: string;
     authClient: any;
+    onStatsUpdate?: (stats:IFCElementStats | null)=> void;
 }
 export const ItwinViewer: React.FC<ItwinViewerProps> =({
     iTwinId,
     iModelId,
     changesetId,
     authClient,
+    onStatsUpdate,
 })=>{
+
+  const [iModelConnection, setIModelConnection] = useState <IModelConnection | null> (null); 
       /** ---------------------------
    * VIEWPORT CONFIGURATION
    * --------------------------- */
@@ -115,7 +120,7 @@ export const ItwinViewer: React.FC<ItwinViewerProps> =({
       console.log(`View opened: ${vp.iModel.name}`);
       Visualization.toggleHouseExterior(vp, false);
       Visualization.changeBackground(vp, "lightblue");
-  }, []);
+  });
   }, []);
 
      /** ---------------------------
@@ -123,7 +128,29 @@ export const ItwinViewer: React.FC<ItwinViewerProps> =({
     * --------------------------- */
     const onIModelConnected = useCallback(async (iModel: IModelConnection) => {
     console.log(`Connected to iModel: ${iModel.name}`);
-  }, []);
+    setIModelConnection(iModel);
+
+    //Query IFC element statistics
+    try {
+      console.log ("Querying IFC element statistics...");
+      const stats = await IFCElementQuery.getElementStats (iModel);
+
+      //Send stats to parent component (App.tsx)
+
+      if (onStatsUpdate) {
+        onStatsUpdate (stats);
+      }
+
+      //log available IFC classes
+      const classes = await IFCElementQuery.getAvailableIFCClasses (iModel);
+      console.log ("Available IFC classes: ", classes);
+    } catch (error) {
+      console.error ("Error queryinng IFC Statitistics: ", error); 
+      if (onStatsUpdate) {
+        onStatsUpdate (null);
+      }
+    }
+  }, [onStatsUpdate]);
 
   const accessToken=useAccessToken();
 
