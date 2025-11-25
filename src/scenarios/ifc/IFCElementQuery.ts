@@ -79,7 +79,7 @@ export class IFCElementQuery {
 
     
 
-      console.log("IFC Element Stats:", stats);
+      console.log("✅ IFC Element Stats:", stats);
       return stats;
     } catch (error) {
       console.error("Error querying IFC elements:", error);
@@ -94,28 +94,37 @@ export class IFCElementQuery {
     iModel: IModelConnection,
     classNames: string[]
   ): Promise<number> {
-    try {
-      const classConditions = classNames
-        .map((className) => `ec_classname(ECClassId, '${className}')`)
-        .join(" OR ");
 
-      const query = `
-        SELECT COUNT(*) as count 
-        FROM BisCore.GeometricElement3d 
-        WHERE ${classConditions}
-      `;
+    let totalCount = 0;
 
-      const results = iModel.createQueryReader(query, undefined, {
-        rowFormat: QueryRowFormat.UseJsPropertyNames,
-      });
 
-      const rows = await results.toArray();
-      return rows.length > 0 ? (rows[0].count || 0) : 0;
-    } catch (error) {
-      console.error(`Error counting elements for ${classNames}:`, error);
-      return 0;
+      for (const className of classNames) {
+        try{
+          const query = `SELECT COUNT(*) FROM ${className}`;
+
+          console.log(`🔍 Executing query: ${query}`);
+
+          const results = iModel.createQueryReader(query);
+          const rows = await results.toArray();
+          console.log(`📊 Raw results for ${className}:`, rows);
+        
+      if (rows.length > 0) {
+
+        const row = rows [0];
+        const count = row.count || row.COUNT || row [0] || 0;
+        totalCount +=count;
+        console.log(`✅ Count for ${className}: ${count}`);
+      } else {
+        console.log(`⚠️ No rows returned for ${className}`);
+      }
     }
-  }
+      catch (error) {
+        console.error(`❌ Error querying ${className}:`, error);
+      }
+    }
+      
+  return totalCount;
+} 
 
   /**
    * Get detailed information about specific element types
@@ -125,14 +134,13 @@ export class IFCElementQuery {
     elementType: string
   ): Promise<any[]> {
     try {
+      const className = `IFCDynamic.${elementType.toLowerCase()}`;
       const query = `
-        SELECT 
+         SELECT 
           ECInstanceId,
           CodeValue,
-          UserLabel,
-          ec_classname(ECClassId, 's') as ClassName
-        FROM BisCore.GeometricElement3d 
-        WHERE ec_classname(ECClassId, 'IFCDynamic.${elementType.toLowerCase()}')
+          UserLabel
+        FROM ${className}
         LIMIT 100
       `;
 
@@ -154,10 +162,14 @@ export class IFCElementQuery {
     iModel: IModelConnection
   ): Promise<string[]> {
     try {
+
+      //Query all schemas to find IFC classes
       const query = `
-        SELECT DISTINCT ec_classname(ECClassId, 's') as ClassName
-        FROM BisCore.GeometricElement3d
-        WHERE ec_classname(ECClassId) LIKE 'IFCDynamic.%'
+        SELECT DISTINCT s.Name || '.' || c.Name as ClassName
+        FROM meta.ECClassDef c
+        JOIN meta.ECSchemaDef s ON c.Schema.Id = s.ECInstanceId
+        WHERE s.Name LIKE '%IFC%' OR s.Name = 'IFCDynamic'
+        ORDER BY ClassName
       `;
 
       const results = iModel.createQueryReader(query, undefined, {
@@ -165,10 +177,33 @@ export class IFCElementQuery {
       });
 
       const rows = await results.toArray();
-      return rows.map((row) => row.className);
+      return rows.map((row) => row.className || row.ClassName);
     } catch (error) {
       console.error("Error getting IFC classes:", error);
-      return [];
+
+      // Fallback: try to query directlt from known IFC tables
+      const knownClasses = [
+        'IFCDynamic.ifcwall',
+        'IFCDynamic.ifcdoor',
+        'IFCDynamic.ifcwindow',
+        'IFCDynamic.ifcslab',
+        'IFCDynamic.ifccolumn',
+        'IFCDynamic.ifcbeam',
+        'IFCDynamic.ifcspace',
+        'IFCDynamic.ifcfurniture'
+      ];
+
+      const existingClasses: string [] = [];
+      for (const className of knownClasses) {
+        try {
+          const testQuery = `SELECT 1 FROM ${className} LIMIT 1`;
+          await iModel.createQueryReader(testQuery).toArray();
+          existingClasses.push(className);
+        } catch {
+
+        }
+      }
+      return existingClasses;
     }
   }
 }
