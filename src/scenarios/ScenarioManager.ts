@@ -1,4 +1,4 @@
-import type { Viewer, Cesium3DTileset } from "cesium";
+import type { Viewer, Cesium3DTileset, ImageryLayer } from "cesium";
 import type { GeoJsonDataSource } from "cesium";
 
 import { LayerType } from "./SCENARIOS";
@@ -18,6 +18,7 @@ export interface LoadedLayer {
   type: LayerType;
   tileset?: Cesium3DTileset;           // for 3D tiles layers
   datasource?: GeoJsonDataSource;      // for GeoJSON layers
+  imageryLayer?: ImageryLayer;
   visible: boolean;
 
   boundingSphere?: any;               // optional precomputed bounding sphere

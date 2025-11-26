@@ -8,6 +8,15 @@ export interface ScenarioLayer {
   visible?: boolean;          // default visibility
   clampToGround?: boolean;    // for GeoJSON
   style?: any;                // Cesium style JSON
+  wmsOptions?: {              // WMS-specific options
+    layers: string;
+    parameters?: {
+      transparent?: boolean;
+      format?: string;
+      version?: string;
+      [key: string]: any;
+    };
+  };
 }
 
 export interface ScenarioDefinition {
@@ -91,7 +100,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
   ifc: {
     id: "ifc",
     title: "IFC Models (3D Tiles + iTwin Viewer)",
-    description: "Full geospatial overlay automation pipeline.",
+    description: "Full geospatial overlay automation pipeline with land use planning overlay.",
 
     layers: [
       // These are real Ion IDs:
@@ -101,6 +110,22 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       // { id: 4065957, name: "IFC Model 4", type: "3DTILES" },
       // { id: 4066099, name: "IFC Model 5", type: "3DTILES" },
       // { id: 4046995, name: "IFC Model 6", type: "3DTILES" },
+
+      // Munich Land Use Planning WMS Layer
+      {
+        id: "munich_landuse_wms",
+        name: "Munich Land Use Plan (FNP)",
+        type: "WMS",
+        visible: true,
+        wmsOptions: {
+          layers: "plan:g_fnp",
+          parameters: {
+            transparent: true,
+            format: "image/png",
+            version: "1.3.0"
+          }
+        }
+      },
 
       // And OSM layers:
       //{ id: 4088254, name: "OSM Building", type: "GEOJSON", clampToGround: false },
