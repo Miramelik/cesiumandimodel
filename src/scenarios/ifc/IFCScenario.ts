@@ -13,7 +13,7 @@ const IFC_SCENARIO_KEY = "ifc";
  * Initialize IFC scenario:
  *  - loads all IFC + GeoJSON layers from SCENARIOS.ifc.layers
  *  - applies default visibility
- *  - flies to IFC Model 1
+ *  - flies to IFC Model 
  */
 export async function initIFCScenario(viewer: Viewer): Promise<LoadedLayer[]> {
   const scenario = SCENARIOS[IFC_SCENARIO_KEY];

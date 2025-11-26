@@ -94,20 +94,20 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
     description: "Full geospatial overlay automation pipeline.",
 
     layers: [
-      // These are your real Ion IDs:
-      { id: 3476879, name: "IFC Model 1", type: "3DTILES", visible: true },
-      { id: 4066080, name: "IFC Model 2", type: "3DTILES" },
-      { id: 4066077, name: "IFC Model 3", type: "3DTILES" },
-      { id: 4065957, name: "IFC Model 4", type: "3DTILES" },
-      { id: 4066099, name: "IFC Model 5", type: "3DTILES" },
-      { id: 4046995, name: "IFC Model 6", type: "3DTILES" },
+      // These are real Ion IDs:
+      { id: 3476879, name: "IFC Model", type: "3DTILES", visible: true },
+      // { id: 4066080, name: "IFC Model 2", type: "3DTILES" },
+      // { id: 4066077, name: "IFC Model 3", type: "3DTILES" },
+      // { id: 4065957, name: "IFC Model 4", type: "3DTILES" },
+      // { id: 4066099, name: "IFC Model 5", type: "3DTILES" },
+      // { id: 4046995, name: "IFC Model 6", type: "3DTILES" },
 
-      // And your OSM layers:
-      { id: 4088254, name: "OSM Building", type: "GEOJSON", clampToGround: false },
-      { id: 4088271, name: "OSM Landuse", type: "GEOJSON" },
+      // And OSM layers:
+      //{ id: 4088254, name: "OSM Building", type: "GEOJSON", clampToGround: false },
+      //{ id: 4088271, name: "OSM Landuse", type: "GEOJSON" },
       { id: 4088283, name: "OSM Railway", type: "GEOJSON" },
       { id: 4088295, name: "OSM Roadway", type: "GEOJSON" },
-      { id: 4088344, name: "OSM Public Transport", type: "GEOJSON" },
+      //{ id: 4088344, name: "OSM Public Transport", type: "GEOJSON" },
       { id: 4078829, name: "CityGML LoD2", type: "3DTILES", visible: true },
     ],
 
