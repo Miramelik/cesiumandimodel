@@ -32,7 +32,7 @@ import {
 import { SCENARIOS } from "../../scenarios/SCENARIOS";
 import { flyToTilesetCustomView } from "./CameraUtils";
 import { IFCElementStats } from "../../scenarios/ifc/IFCElementQuery";
-
+import { MunichLandUseLegend } from "../../scenarios/ifc/WMSlegend";
 
 interface CesiumViewerProps {
   currentScenario?: string;
@@ -655,6 +655,7 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
             )}
           </div>
         </div>
+        <MunichLandUseLegend/>
       </>
     )}
 
