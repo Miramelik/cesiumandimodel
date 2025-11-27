@@ -10,15 +10,15 @@ import React from 'react';
 interface WMSLegendProps {
   wmsUrl: string;
   layerName: string;
-  width?: number;
-  height?: number;
+  //width?: number;
+  //height?: number;
 }
 
 export const WMSLegend: React.FC<WMSLegendProps> = ({
   wmsUrl,
   layerName,
-  width = 200,
-  height = 300
+  //width = 200,
+  //height = 300
 }) => {
   // Build the GetLegendGraphic URL
   const legendUrl = `${wmsUrl}?` + new URLSearchParams({
@@ -27,35 +27,39 @@ export const WMSLegend: React.FC<WMSLegendProps> = ({
     REQUEST: 'GetLegendGraphic',
     LAYER: layerName,
     FORMAT: 'image/png',
-    WIDTH: width.toString(),
-    HEIGHT: height.toString()
+    //WIDTH: width.toString(),
+    //HEIGHT: height.toString()
   }).toString();
 
   return (
     <div style={{
-      padding: '10px',
-      background: 'white',
-      borderRadius: '8px',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-      maxWidth: '250px'
+      position:"absolute",
+      bottom: "0",
+      left: "50%",
+      transform: "translateX(-50%)",
+      background: "rgba(255,255,255,0.95)",
+      padding: "12px 18px",
+        borderRadius: "10px 10px 0 0",
+        boxShadow: "0 -2px 10px rgba(0,0,0,0.15)",
+        zIndex: 9999,
+        width: "430px",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: "10px"
     }}>
-      <h4 style={{ margin: '0 0 10px 0', fontSize: '0.95rem' }}>
-        WMS Legend
+      <h4 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 600 }}>
+        Land Use Legend
       </h4>
       
-      <img 
+     <img
         src={legendUrl}
         alt="WMS Legend"
         style={{
-          width: '100%',
-          height: 'auto',
-          display: 'block'
-        }}
-        onError={(e) => {
-          console.error('Failed to load WMS legend');
-          (e.target as HTMLImageElement).style.display = 'none';
-          (e.target as HTMLImageElement).parentElement!.innerHTML += 
-            '<p style="color: #999; font-size: 0.85rem;">Legend not available</p>';
+          width: "90%",
+          height: "auto",
+          border: "1px solid #ddd",
+          borderRadius: "6px",
         }}
       />
     </div>
@@ -70,23 +74,11 @@ export const WMSLegend: React.FC<WMSLegendProps> = ({
  */
 
 export const MunichLandUseLegend: React.FC = () => {
-  // Option 1: Try automatic legend first
-  const MUNICH_WMS_URL = 'https://geoportal.muenchen.de/geoserver/plan/g_fnp/ows';
-  const LAYER_NAME = 'plan:g_fnp';
-
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '10px'
-    }}>
-      {/* Automatic WMS Legend */}
-      <WMSLegend 
-        wmsUrl={MUNICH_WMS_URL}
-        layerName={LAYER_NAME}
-        width={200}
-        height={300}
-      />
-    </div>
+    <WMSLegend
+      wmsUrl="https://geoportal.muenchen.de/geoserver/plan/g_fnp/ows"
+      layerName="plan:g_fnp"
+    />
   );
 };
+

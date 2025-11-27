@@ -620,12 +620,13 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
             fontSize: "0.85rem",
           }}
         >
-          <strong style={{ fontSize: "0.95rem" }}>Description</strong>
-          <div style={{ marginTop: "6px", lineHeight: "1.4", color: "#555" }}>
+          <strong>Description</strong>
+          <div style={{ marginTop: "6px", color: "#555" }}>
             {SCENARIOS.ifc.description}
           </div>
         </div>
 
+        {/* IFC Stats */}
         <div
           style={{
             padding: "10px",
@@ -655,12 +656,15 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
             )}
           </div>
         </div>
-        <MunichLandUseLegend/>
       </>
     )}
-
-
   </div>
+  {/* --------------------------------------------------
+        GLOBAL LEGEND (BOTTOM CENTER)
+    -------------------------------------------------- */}
+    {currentScenario === "ifc" && (
+      <MunichLandUseLegend />
+    )}
   </div>
 
 );
