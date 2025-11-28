@@ -31,6 +31,8 @@ let busViewer: Viewer | null = null;
 let currentBufferRadius: number = 400; //default 400m
 let bufferUnionPolygon: any = null;
 
+// NEW: Track if buffer has been created
+let bufferCreated: boolean = false;
 
 let tileVisibleCallback: ((title: any) => void) | null = null;
 
@@ -43,7 +45,7 @@ let currentStats: BusStats = {
   coveragePercent: 0,
 };
 
-//Throtle mechanism for stats updates
+//Throttle mechanism for stats updates
 let statsUpdateTimeout = false;
 let lastStatsUpdate = 0;
 const STATS_UPDATE_INTERVAL = 1000; // only update stats once per second
@@ -56,6 +58,7 @@ const STATS_UPDATE_INTERVAL = 1000; // only update stats once per second
 //  - cleanupBusScenario()     -> cleanup when switching scenarios
 //  - setOnBufferUpdated()     -> set callback for buffer updates
 //  - getCurrentBufferRadius() -> get current radius
+//  - createBusBufferIfNeeded() -> NEW: create buffer when layer is toggled on
 // --------------------------------------------------
 
 export function setOnBufferUpdated (callback: (datasource:GeoJsonDataSource, radius:number) => void) {
@@ -79,6 +82,7 @@ export async function initBusScenario(viewer: Viewer): Promise<LoadedLayer[]> {
   buildingsInside.clear();
   buildingsOutside.clear();
   allBuildingIds.clear();
+  bufferCreated = false;
 
   if (bufferDataSource) {
     try {
@@ -93,10 +97,93 @@ export async function initBusScenario(viewer: Viewer): Promise<LoadedLayer[]> {
   
   const loaded: LoadedLayer[] = [];
   
+   try {
+    console.log("[BusScenario] Loading building tileset (Ion asset)...");
+    
+      // -----------------------------------------------
+      // 2) Load 3D BUILDINGS (Cesium Ion asset) - HIDDEN BY DEFAULT
+      // -----------------------------------------------
+      buildingsTileset = await Cesium3DTileset.fromIonAssetId(4138907);
+      buildingsTileset.show = false; // HIDE BY DEFAULT
+      viewer.scene.primitives.add(buildingsTileset);
+    
+      await (buildingsTileset as any).readyPromise;
+      console.log("[BusScenario] Buildings tileset ready");
+      loaded.push({
+        id: 4138907,
+        name: "3D Buildings",
+        type: "3DTILES",
+        tileset: buildingsTileset,
+        visible: false, // CHANGED FROM true TO false
+      });
+
+      // Set up tile visible listener for classification
+      tileVisibleCallback = (tile : any) => {
+        const content = tile.content;
+        const len = content.featuresLength ?? 0;
+        for (let i = 0; i < len; i++) {
+          const f = content.getFeature(i);
+          try {
+            const gmlId = f.getProperty("gml:id");
+            if (gmlId) {
+              allBuildingIds.add(String(gmlId));
+
+              // Only classify if buffer exists
+              if (bufferUnionPolygon && bufferCreated) {
+                const lat = f.getProperty("Latitude");
+                const lon = f.getProperty("Longitude");
+
+                if (lat != null && lon != null) {
+                  const halfSize = 0.00018;
+                  let inside = false;
+
+                  try {
+                    const buildingBbox = turf.bboxPolygon([
+                      lon - halfSize, lat - halfSize,
+                      lon + halfSize, lat + halfSize,
+                    ]);
+                    inside = turf.booleanIntersects(buildingBbox, bufferUnionPolygon);
+                  } catch (e) {
+                    // fallback: if booleanIntersects fails, set false and continue
+                    try {
+                      const point = turf.point([lon, lat]);
+                      inside = turf.booleanPointInPolygon(point, bufferUnionPolygon);
+                    } catch {}
+                  }
+
+                  f.setProperty("is_near_busstop", inside);
+
+                  const gmlIdStr = String(gmlId);
+                  if (inside) {
+                    buildingsInside.add(gmlIdStr);
+                    buildingsOutside.delete(gmlIdStr);
+                  } else {
+                    buildingsOutside.add(gmlIdStr);
+                    buildingsInside.delete(gmlIdStr);
+                  }
+                }
+              } else {
+                // No buffer yet - keep buildings white (neutral)
+                f.setProperty("is_near_busstop", undefined);
+              }
+            }
+          } catch  {}
+        }
+        //Throttle stats updates
+        scheduleStatsUpdate();
+      };
+
+      // Track all visible buildings and collect IDs
+      buildingsTileset.tileVisible.addEventListener(tileVisibleCallback);
+  } catch (e) {
+    console.error("[BusScenario] Failed to load buildings tileset:", e);
+    buildingsTileset = null;
+  }
+
   try {
     
       // -----------------------------------------------
-      // 1) Load BUS STOP GEOJSON (points)
+      // 1) Load BUS STOP GEOJSON (points) - HIDDEN BY DEFAULT
       // -----------------------------------------------
       console.log("[BusScenario] Loading busstops.geojson...");
       const busStopsData = await GeoJsonDataSource.load("/busstops.geojson", {
@@ -105,162 +192,95 @@ export async function initBusScenario(viewer: Viewer): Promise<LoadedLayer[]> {
         clampToGround: true,
       });
       
-        busStopsData.name = "Bus Stops";
-        viewer.dataSources.add(busStopsData);
+      busStopsData.name = "Bus Stops";
+      busStopsData.show = false; // HIDE BY DEFAULT
+      viewer.dataSources.add(busStopsData);
       
-          loaded.push({
-          id: "bus_stops",
-          name: "Bus Stops",
-          type: "GEOJSON",
-          datasource: busStopsData,
-          visible: true,
-        });
+      loaded.push({
+        id: "bus_stops",
+        name: "Bus Stops",
+        type: "GEOJSON",
+        datasource: busStopsData,
+        visible: false, // CHANGED FROM true TO false
+      });
         
-          // Save raw JSON for Turf buffer creation
-          busStopsJson = await fetch("/busstops.geojson").then((r) => r.json());
-           console.log("[BusScenario] Bus stops loaded, features:", busStopsJson?.features?.length ?? 0);
-      } catch (e) {
-        console.error("[BusScenario] Failed to load busstops.geojson:", e);
-      }
+      // Save raw JSON for Turf buffer creation
+      busStopsJson = await fetch("/busstops.geojson").then((r) => r.json());
+      console.log("[BusScenario] Bus stops loaded, features:", busStopsJson?.features?.length ?? 0);
+  } catch (e) {
+    console.error("[BusScenario] Failed to load busstops.geojson:", e);
+  }
 
-      try {
-        console.log("[BusScenario] Loading building tileset (Ion asset)...");
-        
-          // -----------------------------------------------
-          // 2) Load 3D BUILDINGS (Cesium Ion asset)
-          // -----------------------------------------------
-          buildingsTileset = await Cesium3DTileset.fromIonAssetId(4138907);
-          viewer.scene.primitives.add(buildingsTileset);
-        
-          await (buildingsTileset as any).readyPromise;
-           console.log("[BusScenario] Buildings tileset ready");
-           loaded.push({
-             id: 4138907,
-             name: "3D Buildings",
-             type: "3DTILES",
-             tileset: buildingsTileset,
-             visible: true,
-           });
+  // Apply neutral style (white) initially
+  applyBuildingColorStyle();
 
-           //Initial collection of all building IDs (only one on load)
+  // DON'T create buffer on init - wait for user to toggle it on
+  currentBufferRadius = 400; //reset to default
+  
+  // Add placeholder for buffer layer (not created yet)
+  loaded.push({
+    id: "bus_buffer",
+    name: `Buffer (${currentBufferRadius}m)`,
+    type: "GEOJSON",
+    datasource: undefined, // Not created yet
+    visible: false,
+  });
 
-           tileVisibleCallback = (tile : any) => {
-             const content = tile.content;
-             const len = content.featuresLength ?? 0;
-             for (let i = 0; i < len; i++) {
-               const f = content.getFeature(i);
-               try {
-                 const gmlId = f.getProperty("gml:id");
-                 if (gmlId) {
-                  allBuildingIds.add(String(gmlId));
+  console.log("[BusScenario] initBusScenario() finished");
+  return loaded;
+}
 
-                  if (bufferUnionPolygon) {
-                    const lat = f.getProperty("Latitude");
-                    const lon = f.getProperty("Longitude");
+// NEW: Function to create buffer when layer is toggled on
+export async function createBusBufferIfNeeded() {
+  if (!busViewer || !busStopsJson || bufferCreated) {
+    return;
+  }
+  
+  console.log("[BusScenario] Creating buffer for the first time...");
+  await createBusBuffer(busViewer, currentBufferRadius);
+  bufferCreated = true;
+}
 
-                    if (lat != null && lon != null) {
-                      const halfSize = 0.00018;
-                      let inside = false;
+//clean up function
+export function cleanupBusScenario(viewer: Viewer) {
+  console.log("[BusScenario] cleanupBusScenario() called");
 
-                      try {
-                        const buildingBbox = turf.bboxPolygon([
-                          lon - halfSize, lat - halfSize,
-                          lon + halfSize, lat + halfSize,
-                        ]);
-                        inside = turf.booleanIntersects(buildingBbox, bufferUnionPolygon);
-                      } catch (e) {
-                        // fallback: if booleanIntersects fails, set false and continue
-                        try {
-                          const point = turf.point([lon, lat]);
-                          inside = turf.booleanPointInPolygon(point, bufferUnionPolygon);
-                        } catch {}
-                      }
-
-                      f.setProperty("is_near_busstop", inside);
-
-                      const gmlIdStr = String(gmlId);
-                      if (inside) {
-                        buildingsInside.add(gmlIdStr);
-                        buildingsOutside.delete(gmlIdStr);
-                      } else {
-                        buildingsOutside.add(gmlIdStr);
-                        buildingsInside.delete(gmlIdStr);
-                      }
-                    }
-                  }
-                }
-              } catch  {}
-             }
-          //Throttle stats updates
-          scheduleStatsUpdate();
-           };
-
-          // Track all visible buildings and collect IDs
-        buildingsTileset.tileVisible.addEventListener(tileVisibleCallback);
-      } catch (e) {
-        console.error("[BusScenario] Failed to load buildings tileset:", e);
-        buildingsTileset = null;
-      }
-      applyBuildingColorStyle();
-
-      currentBufferRadius = 400; //reset to default
-      await createBusBuffer(viewer, currentBufferRadius);
-
-      if (bufferDataSource) {
-        loaded.push({
-          id: "bus_buffer",
-          name: `Buffer (${currentBufferRadius}m)`,
-          type: "GEOJSON",
-          datasource: bufferDataSource,
-          visible: true,
-        });
-        console.log("[BusScenario] Buffer layer added to loaded list");
-      
-      }
-      console.log("[BusScenario] initBusScenario() finished");
-      return loaded;
+  if (bufferDataSource) {
+    try {
+      viewer.dataSources.remove(bufferDataSource);
+    } catch (e){
+      console.warn("[BusScenario] Error removing buffer datasource", e);
     }
+    bufferDataSource = null;
+  }
 
-    //clean up function
-    export  function cleanupBusScenario(viewer: Viewer) {
-      console.log("[BusScenario] cleanupBusScenario() called");
-
-      if (bufferDataSource) {
-        try {
-          viewer.dataSources.remove(bufferDataSource);
-        } catch (e){
-          console.warn("[BusScenario] Error removing buffer datasource", e);
-        }
-        bufferDataSource = null;
-      }
-
-      //Remove tile visible listener
-      if (tileVisibleCallback && buildingsTileset) {
-        try {
-          buildingsTileset.tileVisible.removeEventListener(tileVisibleCallback);
-        } catch (e){
-          console.warn("[BusScenario] Error removing tileVisible listener", e);
-        }
-        tileVisibleCallback = null;
-      }
-
-      //clear sets
-      buildingsInside.clear();
-      buildingsOutside.clear();
-      allBuildingIds.clear();
-
-      //clear references
-      busStopsJson = null;
-      buildingsTileset = null;
-      lastBufferedPolygon = null;
-      busViewer = null;
-      onBufferUpdatedCallback = null;
-      currentBufferRadius = 400;
-      bufferUnionPolygon = null;
-
-
-      console.log ("[BusScenario] Cleanup complete");
+  //Remove tile visible listener
+  if (tileVisibleCallback && buildingsTileset) {
+    try {
+      buildingsTileset.tileVisible.removeEventListener(tileVisibleCallback);
+    } catch (e){
+      console.warn("[BusScenario] Error removing tileVisible listener", e);
     }
+    tileVisibleCallback = null;
+  }
+
+  //clear sets
+  buildingsInside.clear();
+  buildingsOutside.clear();
+  allBuildingIds.clear();
+
+  //clear references
+  busStopsJson = null;
+  buildingsTileset = null;
+  lastBufferedPolygon = null;
+  busViewer = null;
+  onBufferUpdatedCallback = null;
+  currentBufferRadius = 400;
+  bufferUnionPolygon = null;
+  bufferCreated = false;
+
+  console.log ("[BusScenario] Cleanup complete");
+}
 
 
 // called from react slider
@@ -313,7 +333,7 @@ export async function createBusBuffer(viewer: Viewer, radiusMeters: number) {
     return;
   }
 
-   console.log("[BusScenario] createBusBuffer radiusMeters=", radiusMeters);
+  console.log("[BusScenario] createBusBuffer radiusMeters=", radiusMeters);
 
   // Remove old buffer if exists
   if (bufferDataSource) {
@@ -328,14 +348,14 @@ export async function createBusBuffer(viewer: Viewer, radiusMeters: number) {
   const radiusKm = radiusMeters / 1000;
   let buffered: any;
   try {
-   buffered = turf.buffer(busStopsJson, radiusKm, {units: "kilometers"});
+    buffered = turf.buffer(busStopsJson, radiusKm, {units: "kilometers"});
   } catch (e) {
     console.error("[BusScenario] Turf buffer failed:", e);
     return; 
   }
   if (!buffered || !buffered.features || buffered.features.length === 0) {
- console.warn("[BusScenario] turf.buffer returned no polygon features");
- return;
+    console.warn("[BusScenario] turf.buffer returned no polygon features");
+    return;
   }
   lastBufferedPolygon = buffered;
 
@@ -349,7 +369,7 @@ export async function createBusBuffer(viewer: Viewer, radiusMeters: number) {
     });
     console.log(`[BusScenario] Valid buffer features: ${validFeatures.length}`);
 
-   if (validFeatures.length > 0) {
+    if (validFeatures.length > 0) {
       // Use turf.union to combine all polygons into one
       let unionPolygon = validFeatures[0];
       
@@ -383,15 +403,15 @@ export async function createBusBuffer(viewer: Viewer, radiusMeters: number) {
       clampToGround: true,
     });
     
-      bufferDataSource.name = `Buffer (${radiusMeters}m)`;
-      viewer.dataSources.add(bufferDataSource);
-      console.log("[BusScenario] Buffer added to viewer");
+    bufferDataSource.name = `Buffer (${radiusMeters}m)`;
+    viewer.dataSources.add(bufferDataSource);
+    console.log("[BusScenario] Buffer added to viewer");
   } catch (e) {
-     console.error("[BusScenario] Failed to load buffer into GeoJsonDataSource:", e);
-      return;
+    console.error("[BusScenario] Failed to load buffer into GeoJsonDataSource:", e);
+    return;
   }
 
-// -----------------------------------------------
+  // -----------------------------------------------
   // Re-evaluate ALL buildings with new buffer
   // -----------------------------------------------
   if (buildingsTileset && bufferUnionPolygon) {
@@ -454,19 +474,22 @@ export async function createBusBuffer(viewer: Viewer, radiusMeters: number) {
 }
 
 
-  // =========================================================
+// =========================================================
 //  BUILDING SYMBOLOGY & CLASSIFICATION
 // =========================================================
 //
 function applyBuildingColorStyle() {
-  if (!buildingsTileset) { console.log("[BusScenario] applyBuildingColorStyle: tileset not ready yet");
-    return;};
+  if (!buildingsTileset) { 
+    console.log("[BusScenario] applyBuildingColorStyle: tileset not ready yet");
+    return;
+  }
 
   buildingsTileset.style = new Cesium3DTileStyle({
     color: {
       conditions: [
         ["${is_near_busstop} === true", "color('green', 0.9)"],
-        ["true", "color('red', 0.7)"],
+        ["${is_near_busstop} === false", "color('red', 0.7)"],
+        ["true", "color('white', 0.8)"], // Default white when no buffer
       ],
     },
   });
@@ -511,10 +534,10 @@ export function toggleBusLayer(
   if (clicked.datasource) clicked.datasource.show = clicked.visible;
 
   try {
-  viewer?.scene.requestRender();
-} catch {}
+    viewer?.scene.requestRender();
+  } catch {}
 
- console.log("[BusScenario] toggleBusLayer:", clicked.name, "visible=", clicked.visible);
+  console.log("[BusScenario] toggleBusLayer:", clicked.name, "visible=", clicked.visible);
 
-return updated;
+  return updated;
 }

@@ -286,6 +286,48 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
     return;
     }
 
+     // Special handling for BUS scenario
+  if (currentScenario === "bus") {
+    // Perform async work outside the setState functional updater
+    (async () => {
+      const updated = [...layers];
+      const clicked = updated[index];
+
+      if (!clicked) return;
+
+      clicked.visible = !clicked.visible;
+
+      // Handle buffer layer - create it if needed when toggled on
+      if (clicked.id === "bus_buffer" && clicked.visible) {
+        const { createBusBufferIfNeeded, getBufferDataSource } = await import(
+          "../../scenarios/bus/BusScenario"
+        );
+
+        await createBusBufferIfNeeded();
+
+        // Get the newly created datasource
+        const bufferDS = getBufferDataSource();
+        if (bufferDS) {
+          clicked.datasource = bufferDS;
+          clicked.datasource.show = true;
+        }
+      } else if (clicked.datasource) {
+        clicked.datasource.show = clicked.visible;
+      }
+
+      if (clicked.tileset) {
+        clicked.tileset.show = clicked.visible;
+      }
+
+      viewerRef.current?.scene.requestRender();
+
+      setLayers(updated);
+    })();
+    return;
+  }
+
+
+
     setLayers ((prev) => {
       const updated = [...prev];
       const clicked = updated[index];
