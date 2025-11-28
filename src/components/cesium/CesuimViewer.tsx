@@ -655,16 +655,71 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
               </div>
             )}
           </div>
+          
+        </div>
+
+        {/* Landuse Legend */}
+        <div
+          style={{
+            padding: "10px",
+            background: "white",
+            borderRadius: "8px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+            fontSize: "0.9rem",
+          }}
+        >
+      <strong>Munich Land Use Legend</strong>
+          <div style={{ marginTop: "8px" }}>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+              <div style={{ width: "14px", height: "14px", background: "#FDC449", borderRadius: "3px", marginRight: "8px" }}></div>
+              <span>Residential area</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+              <div style={{ width: "14px", height: "14px", background: "#E19A36", borderRadius: "3px", marginRight: "8px" }}></div>
+              <span>Mixed Use area</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+              <div style={{ width: "14px", height: "14px", background: "#BDA0D1", borderRadius: "3px", marginRight: "8px" }}></div>
+              <span>Special area</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+              <div style={{ width: "14px", height: "14px", background: "#F47ED5", borderRadius: "3px", marginRight: "8px" }}></div>
+              <span>Core area</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+              <div style={{ width: "14px", height: "14px", background: "#E1E1E1", borderRadius: "3px", marginRight: "8px" }}></div>
+              <span>Commercial area</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+              <div style={{ width: "14px", height: "14px", background: "#7ED9FB", borderRadius: "3px", marginRight: "8px" }}></div>
+              <span>Public Amenity</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+              <div style={{ width: "14px", height: "14px", background: "#FFFF63", borderRadius: "3px", marginRight: "8px" }}></div>
+              <span>Main Road</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+              <div style={{ width: "14px", height: "14px", background: "#FFFFFF", borderRadius: "3px", marginRight: "8px" }}></div>
+              <span>Public parking lot</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+              <div style={{ width: "14px", height: "14px", background: "#F9C2E4", borderRadius: "3px", marginRight: "8px" }}></div>
+              <span>Railway</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+              <div style={{ width: "14px", height: "14px", background: "#D9FDDA", borderRadius: "3px", marginRight: "8px" }}></div>
+              <span>Green Space</span>
+            </div>
+            
+          </div>
         </div>
       </>
+
+
+
     )}
   </div>
-  {/* --------------------------------------------------
-        GLOBAL LEGEND (BOTTOM CENTER)
-    -------------------------------------------------- */}
-    {currentScenario === "ifc" && (
-      <MunichLandUseLegend />
-    )}
+ 
   </div>
 
 );

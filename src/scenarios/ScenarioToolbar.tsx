@@ -20,7 +20,7 @@ export const ScenarioToolbar: React.FC<Props> = ({
         width: "240px",
       }}
     >
-      <h4 style={{ marginTop: 0, marginBottom: "10px" }}>Scenarios</h4>
+      <h4 style={{ marginTop: 0, marginBottom: "5px" }}>Scenarios</h4>
 
        {Object.values(SCENARIOS).map((scenario) => (
         <button
@@ -29,7 +29,7 @@ export const ScenarioToolbar: React.FC<Props> = ({
           style={{
             width: "100%",
             //marginRight: "auto",
-            marginBottom: "6px",
+            marginBottom: "2px",
             padding: "10px",
             borderRadius: "6px",
             border: "1px solid #ccc",

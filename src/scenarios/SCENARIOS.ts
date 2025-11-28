@@ -99,7 +99,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
   -------------------------------------------- */
   ifc: {
     id: "ifc",
-    title: "IFC Models (3D Tiles + iTwin Viewer)",
+    title: "IFC Models",
     description: "Full geospatial overlay automation pipeline with land use planning overlay.",
 
     layers: [
@@ -114,7 +114,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       // Munich Land Use Planning WMS Layer
       {
         id: "munich_landuse_wms",
-        name: "Munich Land Use Plan (FNP)",
+        name: "Munich Land Use Plan",
         type: "WMS",
         visible: true,
         wmsOptions: {
