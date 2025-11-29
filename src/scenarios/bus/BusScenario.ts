@@ -3,7 +3,7 @@ import  {
   GeoJsonDataSource,
   Cesium3DTileset,
   Color,
-  Cesium3DTileStyle,
+  Cesium3DTileStyle,  
  } from "cesium";
  import * as turf from "@turf/turf";
 import type { LoadedLayer } from "../ScenarioManager";
@@ -101,7 +101,7 @@ export async function initBusScenario(viewer: Viewer): Promise<LoadedLayer[]> {
     console.log("[BusScenario] Loading building tileset (Ion asset)...");
     
       // -----------------------------------------------
-      // 2) Load 3D BUILDINGS (Cesium Ion asset) - HIDDEN BY DEFAULT
+      // 1) Load 3D BUILDINGS (Cesium Ion asset) - HIDDEN BY DEFAULT
       // -----------------------------------------------
       buildingsTileset = await Cesium3DTileset.fromIonAssetId(4138907);
       buildingsTileset.show = false; // HIDE BY DEFAULT
@@ -183,7 +183,7 @@ export async function initBusScenario(viewer: Viewer): Promise<LoadedLayer[]> {
   try {
     
       // -----------------------------------------------
-      // 1) Load BUS STOP GEOJSON (points) - HIDDEN BY DEFAULT
+      // 2) Load BUS STOP GEOJSON (points) - HIDDEN BY DEFAULT
       // -----------------------------------------------
       console.log("[BusScenario] Loading busstops.geojson...");
       const busStopsData = await GeoJsonDataSource.load("/busstops.geojson", {
@@ -240,6 +240,80 @@ export async function createBusBufferIfNeeded() {
   await createBusBuffer(busViewer, currentBufferRadius);
   bufferCreated = true;
 }
+
+export function resetBuildingToNeutral(){
+  if (!buildingsTileset || !busViewer) {
+    console.warn("[BusScenario] resetBuildingToNeutral: tileset or viewer not ready");
+    return;
+  }
+
+  console.log("[BusScenario] Resetting buildings to neutral (white)...");
+
+  // Clear classification data
+  buildingsInside.clear();
+  buildingsOutside.clear();
+  
+  // IMPORTANT: Clear the buffer polygon so new tiles won't be classified
+  bufferUnionPolygon = null;
+  bufferCreated = false;
+
+  // Method 1: Try to reset all feature properties
+  const tiles = (buildingsTileset as any)._selectedTiles || [];
+  tiles.forEach((tile: any)=>{
+    if (tile.content && tile.content.featuresLength) {
+      const content = tile.content;
+      const len = content.featuresLength;
+
+      for (let i=0; i<len;i++){
+        const feature= content.getFeature(i);
+        if (!feature) continue;
+
+        // Reset property to undefined to show white
+        feature.setProperty("is_near_busstop", undefined);
+      }
+    }
+  });
+
+  // Method 2: Traverse entire tile tree
+  const root = (buildingsTileset as any)._root;
+  if (root) {
+    function resetTileFeatures(tile: any) {
+      if (tile.content && tile.content.featuresLength) {
+        const content = tile.content;
+        for (let i = 0; i < content.featuresLength; i++) {
+          const feature = content.getFeature(i);
+          if (feature) {
+            feature.setProperty("is_near_busstop", undefined);
+          }
+        }
+      }
+      // Recursively process children
+      if (tile.children && tile.children.length > 0) {
+        tile.children.forEach((child: any) => resetTileFeatures(child));
+      }
+    }
+    resetTileFeatures(root);
+  }
+
+  // Method 3: FORCE STYLE REFRESH - This is the key!
+  // Temporarily remove and reapply the style to force Cesium to re-evaluate
+  const currentStyle = buildingsTileset.style;
+  buildingsTileset.style = undefined;
+  
+  // Use setTimeout to ensure Cesium processes the style removal
+  setTimeout(() => {
+    if (buildingsTileset) {
+      buildingsTileset.style = currentStyle;
+      busViewer?.scene.requestRender();
+    }
+  }, 10);
+
+  updateStats();
+  busViewer.scene.requestRender();
+
+  console.log("[BusScenario] Buildings reset to neutral color");
+}
+
 
 //clean up function
 export function cleanupBusScenario(viewer: Viewer) {
@@ -483,13 +557,14 @@ function applyBuildingColorStyle() {
     console.log("[BusScenario] applyBuildingColorStyle: tileset not ready yet");
     return;
   }
+  
 
   buildingsTileset.style = new Cesium3DTileStyle({
     color: {
       conditions: [
         ["${is_near_busstop} === true", "color('green', 0.9)"],
         ["${is_near_busstop} === false", "color('red', 0.7)"],
-        ["true", "color('white', 0.8)"], // Default white when no buffer
+        ["true", "color('white', 1)"], // Default white when no buffer
       ],
     },
   });

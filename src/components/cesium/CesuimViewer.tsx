@@ -298,18 +298,30 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
       clicked.visible = !clicked.visible;
 
       // Handle buffer layer - create it if needed when toggled on
-      if (clicked.id === "bus_buffer" && clicked.visible) {
-        const { createBusBufferIfNeeded, getBufferDataSource } = await import(
-          "../../scenarios/bus/BusScenario"
-        );
+      if (clicked.id === "bus_buffer") {
+        if (clicked.visible){
+          const { createBusBufferIfNeeded, getBufferDataSource } = await import(
+            "../../scenarios/bus/BusScenario"
+          );
+  
+          await createBusBufferIfNeeded();
+  
+          // Get the newly created datasource
+          const bufferDS = getBufferDataSource();
+          if (bufferDS) {
+            clicked.datasource = bufferDS;
+            clicked.datasource.show = true;
+          }
+        }
+        else {
+          const {resetBuildingToNeutral} = await import (
+            "../../scenarios/bus/BusScenario"
+          );
 
-        await createBusBufferIfNeeded();
-
-        // Get the newly created datasource
-        const bufferDS = getBufferDataSource();
-        if (bufferDS) {
-          clicked.datasource = bufferDS;
-          clicked.datasource.show = true;
+          resetBuildingToNeutral();
+          if (clicked.datasource){
+            clicked.datasource.show=false;
+          }
         }
       } else if (clicked.datasource) {
         clicked.datasource.show = clicked.visible;
