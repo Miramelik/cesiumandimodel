@@ -385,22 +385,23 @@ export function getBuildingInfo(feature: any): string | null {
   if (!feature || typeof feature.getProperty !== 'function') return null;
 
   const gmlId = feature.getProperty("gml:id");
-  const height = Number(feature.getProperty("bldg:measuredheight")) || 0;
-  const storeys = Number(feature.getProperty("bldg:storeysaboveground")) || 0;
   const volume = Number(feature.getProperty("calculated_volume")) || 0;
-  const surface = Number(feature.getProperty("calculated_surface")) || 0;
   const energy = Number(feature.getProperty("calculated_energy")) || 0;
   const cost = energy * 0.40; // €0.40 per kWh
   const co2 = energy * 0.31; // 0.31 kg CO2 per kWh
 
   return `
     <b>GML ID:</b> ${gmlId || 'N/A'}<br>
-    <b>Height:</b> ${height.toFixed(1)} m<br>
-    <b>Storeys:</b> ${storeys}<br>
     <b>Volume:</b> ${volume.toFixed(2)} m³<br>
-    <b>Surface:</b> ${surface.toFixed(2)} m²<br>
     <b>Energy Demand:</b> ${energy.toFixed(0)} kWh/year<br>
     <b>Annual Cost:</b> €${cost.toFixed(2)}<br>
     <b>CO₂ Emissions:</b> ${co2.toFixed(2)} kg/year
   `;
+}
+
+/**
+ * Get the current energy scenario tileset (for hover highlighting)
+ */
+export function getEnergyTileset(): Cesium3DTileset | null {
+  return buildingsTileset;
 }

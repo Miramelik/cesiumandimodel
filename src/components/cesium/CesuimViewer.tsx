@@ -3,7 +3,8 @@ import {
    Viewer ,
    ScreenSpaceEventHandler,
    ScreenSpaceEventType, 
-   Cesium3DTileFeature
+   Cesium3DTileFeature, 
+   Color as CesiumColor,
   } from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
@@ -32,7 +33,6 @@ import {
     getEnergyStats,
     applyEnergyVisualization,
     getEnergyLegend,
-    getBuildingInfo,
     type EnergyStats,
   } from "../../scenarios/energy/EnergyScenario";
 
@@ -57,6 +57,10 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
    const [layers,setLayers]=useState<LoadedLayer[]>([])
    const [viewerReady, setViewerReady]= useState(false);
    const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
+   const highlightedFeatureRef = useRef<{
+     feature: any;
+     originalColor: any;
+    } | null>(null);
 
    //Bus specific state
    const [bufferRadius, setBufferRadius]= useState<number>(400); //meters
@@ -64,8 +68,6 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
    const [noiseStats, setNoiseStats]= useState<NoiseStats |null>(null);
    const [energyStats, setEnergyStats] = useState<EnergyStats | null>(null);
    const [energyVisualization, setEnergyVisualization] = useState<string>("default");
-
-
    
 
 /* --------------------------------------------------
@@ -73,107 +75,206 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
    * -------------------------------------------------- */
   
   
-   useEffect(() => {
+  useEffect(() => {
+  
+    if (!containerRef.current || viewerRef.current) return;
+
     const init = async () => {
-      if (!containerRef.current || viewerRef.current) return;
+      console.log("🚀 Initializing Cesium viewer...");
+      // creating cesium viewer
+      const viewerInstance = await initCesiumViewer(containerRef.current!);
+      viewerRef.current=viewerInstance;
+      setViewerReady(true);
+    };
+    init();
+     return () => {
+       if (viewerRef.current) {
+         viewerRef.current.destroy();
+         viewerRef.current = null;
+       }
+  };
+  }, []);
 
-      try {
-        
-              // creating cesium viewer
-              const viewerInstance = await initCesiumViewer(containerRef.current);
-              viewerRef.current = viewerInstance;
-              
-              
-              // ADD CLICK HANDLER FOR PICKING
-              const handler = new ScreenSpaceEventHandler(viewerInstance.scene.canvas);
-              handlerRef.current = handler;
-        
-              handler.setInputAction(
-                (movement: any) => {
-                  const picked = viewerInstance.scene.pick(movement.position);
-        
-                  const popup = document.getElementById("infoPopup") as HTMLDivElement;
-                  if (!popup) return;
-        
-                  if (!picked) {
-                    popup.style.display = "none";
-                    return;
-                  }
-        
-                  // Case 1 — 3D Tiles
-                  if (picked instanceof Cesium3DTileFeature) {
-                      // If we're in energy scenario, show calculated energy info
-                      if (currentScenario === "energy") {
-                        const energyInfo = getBuildingInfo(picked);
-                        if (energyInfo) {
-                          popup.style.display = "block";
-                          popup.style.left = movement.position.x + 10 + "px";
-                          popup.style.top = movement.position.y + 10 + "px";
-                          popup.innerHTML = energyInfo;
-                          return;
-                        }
-                      }
+    useEffect(()=>{
+      if (!viewerReady ||!viewerRef.current) return;
 
-                       // Default behavior for other scenarios
-                   const props: any = {};
-        
-                   picked.getPropertyIds().forEach((id: string) => {
-                     props[id] = picked.getProperty(id);
-                   });
-        
-                   popup.style.display = "block";
-                   popup.innerHTML = `
-                     <b>3D Tiles Feature</b><br/>
-                     <pre>${JSON.stringify(props, null, 2)}</pre>
-                   `;
-        
-                   return;
-                 }
-        
-                  // Case 2 — GeoJSON Entity
-                  if ((picked as any).id) {
-                    const entity = (picked as any).id;
-        
-                    popup.style.display = "block";
-                    popup.innerHTML = `
-                      <b>GeoJSON Feature</b><br/>
-                      ${
-                      entity.properties
-                      ? `<pre>${JSON.stringify(entity.properties._propertyNames.map((n: string) => ({
-                          [n]: entity.properties[n].getValue()
-                        })), null, 2)}</pre>`
-                      : "No attributes"
-                      }
-                    `;
-                    return;
-                  }
-        
-                  popup.style.display = "none";
-                },
-                ScreenSpaceEventType.LEFT_CLICK
-              );   
-        
-              setViewerReady(true);
-              console.log("✅ Cesium viewer initialized");
-            } catch (error) {
-              console.error("❌ Error initializing Cesium viewer:", error);
+      if (handlerRef.current) {
+        handlerRef.current.destroy();
+        handlerRef.current= null;
+      }
+
+      const viewer = viewerRef.current;
+      // Setup hover interaction handler
+      const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
+      handlerRef.current=handler;
+
+       // MOUSE_MOVE for hover with yellow highlight
+        handler.setInputAction(
+          (movement: any) => {
+            const popup = document.getElementById("infoPopup") as HTMLDivElement;
+            if (!popup) return;
+
+            // Reset previous highlight
+            if (highlightedFeatureRef.current?.feature) {
+              try {
+                highlightedFeatureRef.current.feature.color = highlightedFeatureRef.current.originalColor;
+              } catch (e) {
+                console.warn("Failed to reset color:", e);
+              }
+              highlightedFeatureRef.current = null;
             }
 
-    };
+            const pickedFeature = viewer.scene.pick(movement.endPosition);
 
-      init();
-      return () =>{
-        if (handlerRef.current) {
-      handlerRef.current.destroy();
-      handlerRef.current = null;  
-        }
-        if (viewerRef.current) {
-          viewerRef.current.destroy();
-          viewerRef.current = null;
-        }
-      };
+            // Check if we picked a 3D Tile feature
+            if (
+              pickedFeature &&
+              pickedFeature instanceof Cesium3DTileFeature &&
+              typeof pickedFeature.getProperty === 'function'
+            ) {
+              // Store original color
+              const originalColor = new CesiumColor();
+              try {
+                CesiumColor.clone(pickedFeature.color, originalColor);
+              } catch (e) {
+                 console.warn("Failed to clone color:", e);
+              }
+
+              // Highlight in yellow
+              try {
+                pickedFeature.color = CesiumColor.YELLOW;
+              } catch (e) {
+                 console.warn("Failed to set yellow color:", e);
+              }
+
+              highlightedFeatureRef.current = {
+                feature: pickedFeature,
+                originalColor: originalColor,
+              };
+
+              // Get scenario-specific info
+              let infoHtml = "";
+
+              console.log("🎯 Current Scenario:", currentScenario); 
+
+              if (currentScenario === "energy") {
+                // Energy scenario - show calculated metrics
+                 console.log("⚡ Displaying energy info");
+
+                 const gmlId = pickedFeature.getProperty("gml:id") || "N/A";
+                 const volume = Number(pickedFeature.getProperty("calculated_volume")) || 0;
+                 const energy = Number(pickedFeature.getProperty("calculated_energy")) || 0;
+                 const cost = energy * 0.40;
+                 const co2 = energy * 0.31;
+
+                infoHtml = `
+                <div style="line-height: 1.8;">
+                  <b style="color: #3498db;">Energy Analysis</b><br>
+                  <b>GML ID:</b> ${gmlId.length > 25 ? gmlId.substring(0, 25) + '...' : gmlId}<br>
+                  <b>Volume:</b> ${volume.toFixed(2)} m³<br>
+                  <b>Energy Demand:</b> ${energy.toFixed(0)} kWh/year<br>
+                  <b>Annual Cost:</b> €${cost.toFixed(2)}<br>
+                  <b>CO₂ Emissions:</b> ${co2.toFixed(2)} kg/year
+                </div>
+                `;
+              } else if (currentScenario === "bus") {
+                // Bus scenario
+                console.log("🚌 Displaying bus info");
+
+                const gmlId = pickedFeature.getProperty("gml:id") || "N/A";
+                const nearBusStop = pickedFeature.getProperty("is_near_busstop");
+
+                let statusText = "Unknown";
+                let statusColor = "#888";
+
+                if (nearBusStop === true) {
+                statusText = "✓ Yes";
+                statusColor = "#2ecc71";
+              } else if (nearBusStop === false) {
+                statusText = "✗ No";
+                statusColor = "#e74c3c";
+              }  
+
+
+                 infoHtml = `
+                <div style="line-height: 1.8;">
+                  <b style="color: #f39c12;">Bus Stop Analysis</b><br>
+                  <b>Building ID:</b> ${gmlId.length > 25 ? gmlId.substring(0, 25) + '...' : gmlId}<br>
+                  <b>Near Bus Stop:</b> <span style="color: ${statusColor}; font-weight: bold;">${statusText}</span>
+                </div>
+              `;
+
+              } else if (currentScenario === "noise") {
+                // Noise scenario
+
+                console.log("🔊 Displaying noise info");
+
+                const gmlId = pickedFeature.getProperty("gml:id") || "N/A";
+              const noiseLevel = pickedFeature.getProperty("noise_level") || "unknown";
+              
+              let displayLevel = noiseLevel.charAt(0).toUpperCase() + noiseLevel.slice(1);
+              let levelColor = "#888";
+              
+              if (noiseLevel === "high") {
+                levelColor = "#e74c3c";
+              } else if (noiseLevel === "medium") {
+                levelColor = "#f39c12";
+              } else if (noiseLevel === "low") {
+                levelColor = "#2ecc71";
+              }
+
+              infoHtml = `
+                <div style="line-height: 1.8;">
+                  <b style="color: #9b59b6;">Noise Analysis</b><br>
+                  <b>Building ID:</b> ${gmlId.length > 25 ? gmlId.substring(0, 25) + '...' : gmlId}<br>
+                  <b>Noise Level:</b> <span style="color: ${levelColor}; font-weight: bold;">${displayLevel}</span>
+                </div>
+              `;
+
+              } else if (currentScenario === "ifc") {
+                // IFC scenario
+
+                console.log("🏗️ Displaying IFC info");
+
+                 const gmlId = pickedFeature.getProperty("gml:id") || "N/A";
+              
+              infoHtml = `
+                <div style="line-height: 1.8;">
+                  <b style="color: #1abc9c;">IFC Model</b><br>
+                  <b>Building ID:</b> ${gmlId.length > 25 ? gmlId.substring(0, 25) + '...' : gmlId}
+                </div>
+              `;
+
+              } else {
+                // Default
+                console.log("📋 Displaying default info");
+              const gmlId = pickedFeature.getProperty("gml:id") || "N/A";
+              
+              infoHtml = `
+                <div style="line-height: 1.8;">
+                  <b>Building Information</b><br>
+                  <b>Building ID:</b> ${gmlId.length > 25 ? gmlId.substring(0, 25) + '...' : gmlId}
+                </div>
+              `;
+              }
+
+              // Position and show popup
+              popup.style.left = movement.endPosition.x + 15 + "px";
+            popup.style.top = movement.endPosition.y + 15 + "px";
+            popup.style.display = "block";
+            popup.innerHTML = infoHtml;
+            } else {
+              // No feature picked - hide popup
+              popup.style.display = "none";
+            }
+          },    
+  
+       
+          ScreenSpaceEventType.MOUSE_MOVE
+        );
+    
       
-    }, []);
+    }, [currentScenario, viewerReady]);
 
 
     useEffect (()=>{
@@ -436,22 +537,26 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
       }}
     />
 
-    {/* --- INFO POPUP --- */}
-    <div
-      id="infoPopup"
-      style={{
-        position: "absolute",
-        bottom: "20px",
-        right: "20px",
-        padding: "20px",
-        background: "rgba(0,0,0,0.75)",
-        color: "white",
-        borderRadius: "6px",
-        maxWidth: "300px",
-        display: "none",
-        zIndex: 2000,
-      }}
-    ></div>
+    <div 
+            id="infoPopup" 
+            style={{
+              position: "absolute",
+              backgroundColor: "rgba(0, 0, 0, 0.85)",
+              color: "white",
+              border: "1px solid rgba(52, 152, 219, 0.5)",
+              borderRadius: "6px",
+              padding: "10px 14px",
+              display: "none",
+              pointerEvents: "none",
+              zIndex: 10000,
+              fontSize: "13px",
+              lineHeight: "1.8",
+              fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)",
+              minWidth: "200px",
+              maxWidth: "300px",
+            }}
+          ></div>
 
 
     {/* --- FLOATING LAYERS PANEL --- */}

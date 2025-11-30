@@ -102,12 +102,12 @@ const App: React.FC = () => {
       {/*  CESIUM VIEWER — ALWAYS VISIBLE, FULL SCREEN */}
            <div 
                style={{ 
-                  width: currentScenario === "ifc" ? "50%" : "100%", // <-- NEW
+                  width: currentScenario === "ifc" ? "50%" : "100%", 
                   height: "100vh",
                   overflow: "hidden",
                   position: "absolute",
-                  right: 0, // <-- NEW: Pin to the right side
-                  top: 0, // <-- NEW
+                  right: 0,
+                  top: 0, 
                   zIndex: 100, // Make sure it's under the iTwin panel (zIndex 5000)
               }}
               >
@@ -146,20 +146,6 @@ const App: React.FC = () => {
     </div>  
     )}
 
-            {/* CESIUM POPUP (moved out here so it floats above everything) */}
-          <div 
-          id="infoPopup" 
-          style = {{
-            position: "absolute",
-            backgroundColor: "white",
-            border: "1px solid #ccc",
-            borderRadius: "4px",
-            padding: "6px",
-            display: "none",
-            pointerEvents: "none",
-            zIndex: 1000,
-          }}
-          ></div>
     </div>
   );
 };
