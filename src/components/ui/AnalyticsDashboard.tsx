@@ -8,11 +8,9 @@ import {
   Tooltip,
   Legend,
   ArcElement,
-  PointElement,
-  LineElement,
 } from 'chart.js';
 import { Bar, Doughnut, Pie } from 'react-chartjs-2';
-import { X } from 'lucide-react';
+import './AnalyticsDashboard.css';
 
 // Register ChartJS components
 ChartJS.register(
@@ -22,9 +20,7 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  ArcElement,
-  PointElement,
-  LineElement
+  ArcElement
 );
 
 interface BuildingFeature {
@@ -78,7 +74,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       totalBuildings,
       totalVolume,
       totalSurface,
-      solarPotential: (flatRoofs / totalBuildings) * 100,
+      solarPotential: totalBuildings > 0 ? (flatRoofs / totalBuildings) * 100 : 0,
       energyDemand: totalEnergyDemand,
       annualCost,
     });
@@ -199,12 +195,12 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="analytics-dashboard-overlay">
-      <div className="analytics-dashboard-panel">
+    <div className="analytics-dashboard-overlay" onClick={onClose}>
+      <div className="analytics-dashboard-panel" onClick={(e) => e.stopPropagation()}>
         <div className="dashboard-header">
           <h2>Building Analytics Visualization</h2>
           <button onClick={onClose} className="close-btn">
-            <X size={24} />
+            ×
           </button>
         </div>
 
@@ -213,7 +209,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
           <div className="metrics-grid">
             <div className="metric-card">
               <div className="metric-label">TOTAL BUILDINGS</div>
-              <div className="metric-value">{metrics.totalBuildings}</div>
+              <div className="metric-value">{metrics.totalBuildings.toLocaleString()}</div>
             </div>
             <div className="metric-card">
               <div className="metric-label">TOTAL VOLUME</div>

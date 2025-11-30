@@ -481,6 +481,9 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
       };
       
       traverseTile(root);
+
+      console.log("Sample features:", features.slice(0, 3));
+      console.log("Total features:", features.length);
       
       console.log(`✅ Extracted ${features.length} building features`);
       setBuildingsData(features);

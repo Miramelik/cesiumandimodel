@@ -6,9 +6,9 @@
   bottom: 0;
   left: 0;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 1000;
+  z-index: 10001;
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
   align-items: center;
   animation: fadeIn 0.2s ease-out;
 }
@@ -26,22 +26,19 @@
   background: white;
   width: 90%;
   max-width: 450px;
-  max-height: 90vh;
-  border-radius: 8px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  height: 100vh;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
-  animation: slideUp 0.3s ease-out;
+  animation: slideIn 0.3s ease-out;
 }
 
-@keyframes slideUp {
+@keyframes slideIn {
   from {
-    transform: translateY(20px);
-    opacity: 0;
+    transform: translateX(100%);
   }
   to {
-    transform: translateY(0);
-    opacity: 1;
+    transform: translateX(0);
   }
 }
 
@@ -52,7 +49,7 @@
   padding: 20px 24px;
   border-bottom: 1px solid #e5e7eb;
   background: #f9fafb;
-  border-radius: 8px 8px 0 0;
+  flex-shrink: 0;
 }
 
 .dashboard-header h2 {
@@ -73,6 +70,10 @@
   justify-content: center;
   border-radius: 4px;
   transition: all 0.2s ease;
+  font-size: 32px;
+  width: 36px;
+  height: 36px;
+  line-height: 1;
 }
 
 .close-btn:hover {
@@ -169,8 +170,8 @@
 /* Responsive */
 @media (max-width: 640px) {
   .analytics-dashboard-panel {
-    width: 95%;
-    max-height: 95vh;
+    width: 100%;
+    max-width: 100%;
   }
 
   .dashboard-header {
