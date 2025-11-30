@@ -403,20 +403,40 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
 
        }
        else if (currentScenario === "energy") {
-         setEnergyStats(getEnergyStats());
-
-         // Extract building features for analytics dashboard
-         const buildingLayer = newLayers.find(l => l.id === "buildings");
-         if (buildingLayer?.tileset) {
-           extractBuildingFeatures(buildingLayer.tileset);
-         }
-         
-         const statsInterval = setInterval(() => {
-           setEnergyStats(getEnergyStats());
-         }, 1500);
-         
-         return () => clearInterval(statsInterval);
-        }
+  console.log("🔋 [ENERGY] Starting energy scenario...");
+  setEnergyStats(getEnergyStats());
+  
+  // Extract building features for analytics dashboard
+  console.log("🔋 [ENERGY] Looking for buildings layer...");
+  console.log("🔋 [ENERGY] Available layers:", newLayers.map(l => ({ id: l.id, name: l.name, hasTileset: !!l.tileset })));
+  
+  const buildingLayer = newLayers.find(l => {
+    console.log(`🔍 [ENERGY] Checking layer: ${l.name} (ID: ${l.id}), has tileset: ${!!l.tileset}`);
+    return l.id === "buildings" || l.id === 4138907 || l.name.includes("Building");
+  });
+  
+  console.log("🔋 [ENERGY] Building layer found:", buildingLayer);
+  
+  if (buildingLayer?.tileset) {
+    console.log("🔋 [ENERGY] Calling extractBuildingFeatures...");
+    await extractBuildingFeatures(buildingLayer.tileset);
+  } else {
+    console.error("❌ [ENERGY] No building tileset found! Available layers:", newLayers);
+    
+    // Try to extract from ANY tileset as fallback
+    const anyTileset = newLayers.find(l => l.tileset)?.tileset;
+    if (anyTileset) {
+      console.log("⚠️ [ENERGY] Using fallback tileset for extraction");
+      await extractBuildingFeatures(anyTileset);
+    }
+  }
+  
+  const statsInterval = setInterval(() => {
+    setEnergyStats(getEnergyStats());
+  }, 1500);
+  
+  return () => clearInterval(statsInterval);
+}
        else {
         //setBusStats(null);
         // setNoiseStats(null);
