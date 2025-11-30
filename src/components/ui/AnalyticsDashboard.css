@@ -8,7 +8,7 @@
   background: rgba(0, 0, 0, 0.5);
   z-index: 10001;
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start; /* Changed from flex-end to flex-start */
   align-items: center;
   animation: fadeIn 0.2s ease-out;
 }
@@ -27,15 +27,16 @@
   width: 90%;
   max-width: 450px;
   height: 100vh;
-  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3); /* Changed from -4px to 4px for left side shadow */
   display: flex;
   flex-direction: column;
-  animation: slideIn 0.3s ease-out;
+  animation: slideInFromLeft 0.3s ease-out; /* Changed animation name */
 }
 
-@keyframes slideIn {
+/* New animation for sliding from left */
+@keyframes slideInFromLeft {
   from {
-    transform: translateX(100%);
+    transform: translateX(-100%);
   }
   to {
     transform: translateX(0);
