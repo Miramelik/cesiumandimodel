@@ -27,8 +27,16 @@ import {
     getNoiseStats,
     type NoiseStats,
   } from "../../scenarios/noise/NoiseScenario";
+  
+  import {
+    getEnergyStats,
+    applyEnergyVisualization,
+    getEnergyLegend,
+    getBuildingInfo,
+    type EnergyStats,
+  } from "../../scenarios/energy/EnergyScenario";
 
-  import { ScenarioToolbar } from "../../scenarios/ScenarioToolbar";
+import { ScenarioToolbar } from "../../scenarios/ScenarioToolbar";
 import { SCENARIOS } from "../../scenarios/SCENARIOS";
 import { flyToTilesetCustomView } from "./CameraUtils";
 import { IFCElementStats } from "../../scenarios/ifc/IFCElementQuery";
@@ -54,6 +62,10 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
    const [bufferRadius, setBufferRadius]= useState<number>(400); //meters
    const [busStats, setBusStats]= useState<BusStats |null>(null);
    const [noiseStats, setNoiseStats]= useState<NoiseStats |null>(null);
+   const [energyStats, setEnergyStats] = useState<EnergyStats | null>(null);
+   const [energyVisualization, setEnergyVisualization] = useState<string>("default");
+
+
    
 
 /* --------------------------------------------------
@@ -89,7 +101,20 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
                   }
         
                   // Case 1 — 3D Tiles
-                   if (picked instanceof Cesium3DTileFeature) {
+                  if (picked instanceof Cesium3DTileFeature) {
+                      // If we're in energy scenario, show calculated energy info
+                      if (currentScenario === "energy") {
+                        const energyInfo = getBuildingInfo(picked);
+                        if (energyInfo) {
+                          popup.style.display = "block";
+                          popup.style.left = movement.position.x + 10 + "px";
+                          popup.style.top = movement.position.y + 10 + "px";
+                          popup.innerHTML = energyInfo;
+                          return;
+                        }
+                      }
+
+                       // Default behavior for other scenarios
                    const props: any = {};
         
                    picked.getPropertyIds().forEach((id: string) => {
@@ -260,9 +285,19 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
         return () => clearInterval(statsInterval);
 
        }
+       else if (currentScenario === "energy") {
+         setEnergyStats(getEnergyStats());
+         
+         const statsInterval = setInterval(() => {
+           setEnergyStats(getEnergyStats());
+         }, 1500);
+         
+         return () => clearInterval(statsInterval);
+        }
        else {
-        setBusStats(null);
-        setNoiseStats(null);
+        //setBusStats(null);
+        // setNoiseStats(null);
+        // setEnergyStats(null);
        }
        console.log(`✅ Scenario loaded: ${scenarioId}, ${newLayers.length} layers`);
     };
@@ -664,6 +699,151 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
         </div>
       </>
     )}
+
+    {/* === ENERGY SCENARIO UI === */}
+{currentScenario === "energy" && (
+  <>
+    {/* Description Panel */}
+    <div
+      style={{
+        padding: "10px",
+        background: "white",
+        borderRadius: "8px",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+        fontSize: "0.85rem",
+      }}
+    >
+      <strong style={{ fontSize: "0.95rem" }}>Description</strong>
+      <div style={{ marginTop: "6px", lineHeight: "1.4", color: "#555" }}>
+        {SCENARIOS.energy.description}
+      </div>
+    </div>
+
+    {/* Visualization Controls */}
+    <div
+      style={{
+        padding: "10px",
+        background: "white",
+        borderRadius: "8px",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+        fontSize: "0.9rem",
+      }}
+    >
+      <strong>Visualization Mode</strong>
+      <select
+        value={energyVisualization}
+        onChange={(e) => {
+          const mode = e.target.value as any;
+          setEnergyVisualization(mode);
+          applyEnergyVisualization(mode);
+        }}
+        style={{
+          width: "100%",
+          marginTop: "8px",
+          padding: "6px",
+          borderRadius: "4px",
+          border: "1px solid #ccc",
+        }}
+      >
+        <option value="default">Default (No coloring)</option>
+        <option value="solar">Solar Suitability</option>
+        <option value="height">Building Height</option>
+        <option value="storeys">Number of Storeys</option>
+        <option value="function">Building Function</option>
+        <option value="energy">Energy Demand</option>
+      </select>
+    </div>
+
+    {/* Energy Statistics */}
+    <div
+      style={{
+        padding: "10px",
+        background: "white",
+        borderRadius: "8px",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+        fontSize: "0.9rem",
+      }}
+    >
+      <strong>Building Statistics</strong>
+      <div style={{ marginTop: "8px" }}>
+        {energyStats ? (
+          <>
+            <div>Total buildings: <b>{energyStats.totalBuildings.toLocaleString()}</b></div>
+            <div style={{ marginTop: "4px" }}>Total volume: <b>{(energyStats.totalVolume / 1000000).toFixed(2)}M m³</b></div>
+            <div style={{ marginTop: "4px" }}>Total surface: <b>{(energyStats.totalSurface / 1000).toFixed(1)}K m²</b></div>
+            <div style={{ marginTop: "4px" }}>Flat roofs: <b>{energyStats.flatRoofCount} ({energyStats.flatRoofPercent}%)</b></div>
+            <div style={{ marginTop: "4px" }}>Avg. height: <b>{energyStats.avgHeight.toFixed(1)} m</b></div>
+            <div style={{ marginTop: "4px" }}>Avg. storeys: <b>{energyStats.avgStoreys.toFixed(1)}</b></div>
+          </>
+        ) : (
+          <div style={{ color: "#999", fontStyle: "italic" }}>
+            Loading statistics...
+          </div>
+        )}
+      </div>
+    </div>
+
+    {/* Energy Metrics */}
+    <div
+      style={{
+        padding: "10px",
+        background: "white",
+        borderRadius: "8px",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+        fontSize: "0.9rem",
+      }}
+    >
+      <strong>Energy Analysis</strong>
+      <div style={{ marginTop: "8px" }}>
+        {energyStats ? (
+          <>
+            <div>Energy demand: <b>{(energyStats.totalEnergyDemand / 1000000).toFixed(2)}M kWh/year</b></div>
+            <div style={{ marginTop: "4px" }}>Annual cost: <b>€{(energyStats.annualCost / 1000000).toFixed(2)}M</b></div>
+            <div style={{ marginTop: "4px" }}>CO₂ emissions: <b>{(energyStats.co2Emissions / 1000000).toFixed(2)}M kg/year</b></div>
+          </>
+        ) : (
+          <div style={{ color: "#999", fontStyle: "italic" }}>
+            Calculating energy metrics...
+          </div>
+        )}
+      </div>
+    </div>
+
+    {/* Legend */}
+    {(() => {
+      const legend = getEnergyLegend();
+      if (!legend) return null;
+      
+      return (
+        <div
+          style={{
+            padding: "10px",
+            background: "white",
+            borderRadius: "8px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+            fontSize: "0.9rem",
+          }}
+        >
+          <strong>{legend.title}</strong>
+          <div style={{ marginTop: "8px" }}>
+            {legend.items.map((item, idx) => (
+              <div key={idx} style={{ display: "flex", alignItems: "center", marginBottom: "6px" }}>
+                <div style={{
+                  width: "14px",
+                  height: "14px",
+                  background: item.color,
+                  borderRadius: "3px",
+                  marginRight: "8px",
+                }}></div>
+                <span>{item.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    })()}
+  </>
+)}
 
     {/* === IFC SCENARIO UI - DISPLAY ELEMENT STATS === */}
     {currentScenario === "ifc" && (

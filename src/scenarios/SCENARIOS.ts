@@ -81,7 +81,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
   energy: {
     id: "energy",
     title: "Energy Consumption",
-    description: "Building-level energy demand & solar.",
+    description: "Analyze building energy demand based on volume, visualize solar potential for flat roofs, and estimate CO₂ emissions and annual costs. Supports multiple visualization modes including height, storeys, function, and energy demand.",
 
     layers: [],
 

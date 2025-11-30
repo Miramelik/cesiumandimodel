@@ -5,7 +5,7 @@ import { LayerType } from "./SCENARIOS";
 import { initIFCScenario, toggleIFCLayer } from "./ifc/IFCScenario";
 import { initBusScenario, cleanupBusScenario  } from "./bus/BusScenario";
 import { initNoiseScenario, cleanupNoiseScenario } from "./noise/NoiseScenario";
-import { initEnergyScenario} from "./energy/EnergyScenario";
+import { initEnergyScenario, cleanupEnergyScenario} from "./energy/EnergyScenario";
 
 
 export type ScenarioId = "ifc" | "bus" | "noise" | "energy";
@@ -25,8 +25,7 @@ export interface LoadedLayer {
 }
 
 /**
- * ScenarioManager is a small helper that knows
- * which init function to call for each scenario.
+ * ScenarioManager handles loading and cleanup for all scenarios
  */
 export class ScenarioManager {
   /**
@@ -44,6 +43,10 @@ export class ScenarioManager {
 
     try {
       cleanupNoiseScenario(viewer);
+    } catch {}
+
+    try {
+      cleanupEnergyScenario(viewer);
     } catch {}
     
     switch (id) {
