@@ -40,12 +40,24 @@ import { ScenarioToolbar } from "../../scenarios/ScenarioToolbar";
 import { SCENARIOS } from "../../scenarios/SCENARIOS";
 import { flyToTilesetCustomView } from "./CameraUtils";
 import { IFCElementStats } from "../../scenarios/ifc/IFCElementQuery";
+import AnalyticsDashboard from "../ui/AnalyticsDashboard";
 
 interface CesiumViewerProps {
   currentScenario?: string;
   onScenarioChange?: (id: string) => void;
   ifcStats ?: IFCElementStats | null;
 }
+
+interface BuildingFeature {
+  id: number;
+  height: number;
+  storeys: number;
+  function: string;
+  rooftype: number;
+  surface: number;
+  volume: number;
+}
+
 
 export const CesiumViewer: React.FC <CesiumViewerProps> = ({
   currentScenario,
@@ -68,6 +80,10 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
    const [noiseStats, setNoiseStats]= useState<NoiseStats |null>(null);
    const [energyStats, setEnergyStats] = useState<EnergyStats | null>(null);
    const [energyVisualization, setEnergyVisualization] = useState<string>("default");
+
+   // Analytics Dashboard state
+   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
+   const [buildingsData, setBuildingsData] = useState<BuildingFeature[]>([]);
    
 
 /* --------------------------------------------------
@@ -388,6 +404,12 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
        }
        else if (currentScenario === "energy") {
          setEnergyStats(getEnergyStats());
+
+         // Extract building features for analytics dashboard
+         const buildingLayer = newLayers.find(l => l.id === "buildings");
+         if (buildingLayer?.tileset) {
+           extractBuildingFeatures(buildingLayer.tileset);
+         }
          
          const statsInterval = setInterval(() => {
            setEnergyStats(getEnergyStats());
@@ -407,6 +429,65 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
       console.error("Error loading scenario:", error);
     });
   }, [viewerReady, currentScenario]); 
+
+   /*-------------------------------------------------
+    * Extract Building Features for Analytics Dashboard
+    * -------------------------------------------------- */
+  const extractBuildingFeatures = async (tileset: any) => {
+    try {
+      console.log("🏢 Extracting building features for analytics...");
+      await tileset.readyPromise;
+      
+      // Wait for tiles to load
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      const features: BuildingFeature[] = [];
+      const root = tileset.root;
+      
+      const traverseTile = (tile: any) => {
+        if (tile.content && tile.content.featuresLength > 0) {
+          for (let i = 0; i < tile.content.featuresLength; i++) {
+            const feature = tile.content.getFeature(i);
+            
+            const height = Number(feature.getProperty('bldg:measuredheight')) || 0;
+            const storeys = Number(feature.getProperty('bldg:storeysaboveground')) || 0;
+            const roofType = feature.getProperty('bldg:rooftype');
+            const functionCode = feature.getProperty('bldg:function') || 'other';
+            const volume = Number(feature.getProperty('calculated_volume')) || 0;
+            const surface = Number(feature.getProperty('Grundflaeche')) || 0;
+            
+            // Map function codes
+            let mappedFunction = '39001_1000'; // Default: Other
+            if (functionCode.includes('31001')) mappedFunction = '31001_1000'; // Residential
+            else if (functionCode.includes('32001')) mappedFunction = '32001_1000'; // Office
+            
+            if (height > 0 || storeys > 0 || volume > 0) {
+              features.push({
+                id: features.length,
+                height,
+                storeys,
+                function: mappedFunction,
+                rooftype: roofType || 2000,
+                surface,
+                volume,
+              });
+            }
+          }
+        }
+        
+        if (tile.children && tile.children.length > 0) {
+          tile.children.forEach((child: any) => traverseTile(child));
+        }
+      };
+      
+      traverseTile(root);
+      
+      console.log(`✅ Extracted ${features.length} building features`);
+      setBuildingsData(features);
+    } catch (error) {
+      console.error("Error extracting building features:", error);
+    }
+  };
 
   /* --------------------------------------------------
     * 3. Toggle Layer Visibility
@@ -511,7 +592,7 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
   };
 
     /* --------------------------------------------------
-   * 4. JSX Layout
+   * 5. JSX Layout
    * -------------------------------------------------- */
 
    return (
@@ -557,6 +638,15 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
               maxWidth: "300px",
             }}
           ></div>
+
+           
+
+    {/* --- ANALYTICS DASHBOARD --- */}
+    <AnalyticsDashboard
+      isOpen={isDashboardOpen}
+      onClose={() => setIsDashboardOpen(false)}
+      buildingsData={buildingsData}
+    />
 
 
     {/* --- FLOATING LAYERS PANEL --- */}
@@ -768,11 +858,9 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
       <strong>Building Statistics</strong>
           <div style={{ marginTop: "8px" }}>
             <div>Total buildings: <b>{noiseStats.total}</b></div>
-            <div style={{ marginTop: "4px" }}>High noise zone: <b>{noiseStats.insideHigh}</b></div>
-            <div style={{ marginTop: "4px" }}>Medium noise zone: <b>{noiseStats.insideMedium}</b></div>
-            <div style={{ marginTop: "4px" }}>Low noise zone: <b>{noiseStats.insideLow}</b></div>
-            <div style={{ marginTop: "4px" }}>Outside noise zones: <b>{noiseStats.outsideHigh}</b></div>
-            <div style={{ marginTop: "4px" }}>High noise coverage: <b>{noiseStats.coveragePercent}%</b></div>
+            <div style={{ marginTop: "4px" }}>Inside High noise zone: <b>{noiseStats.insideHigh}</b></div>
+            <div style={{ marginTop: "4px" }}>Outside High noise zones: <b>{noiseStats.outsideHigh}</b></div>
+            <div style={{ marginTop: "4px" }}>Coverage: <b>{noiseStats.coveragePercent}%</b></div>
           </div>
         </div>
 
@@ -947,8 +1035,54 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
         </div>
       );
     })()}
-  </>
+
+    {/* === ANALYTICS BUTTON (Hover to Open Dashboard) === */}
+  <div
+    onMouseEnter={() => {
+      setIsDashboardOpen(true);
+    }}
+    style={{
+      padding: "14px",
+      background: "linear-gradient(135deg, #3498db 0%, #2980b9 100%)",
+      borderRadius: "8px",
+      boxShadow: "0 4px 12px rgba(52, 152, 219, 0.3)",
+      cursor: "pointer",
+      transition: "all 0.3s ease",
+      textAlign: "center",
+      color: "white",
+      fontWeight: "600",
+      fontSize: "14px",
+      position: "relative",
+      overflow: "hidden",
+    }}
+    onMouseOver={(e) => {
+      e.currentTarget.style.transform = "translateY(-2px)";
+      e.currentTarget.style.boxShadow = "0 6px 16px rgba(52, 152, 219, 0.4)";
+    }}
+    onMouseOut={(e) => {
+      e.currentTarget.style.transform = "translateY(0)";
+      e.currentTarget.style.boxShadow = "0 4px 12px rgba(52, 152, 219, 0.3)";
+    }}
+  >
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+      <span style={{ fontSize: "16px" }}>📊</span>
+      <span>Analytics Dashboard</span>
+    </div>
+    <div style={{
+      fontSize: "11px",
+      marginTop: "4px",
+      opacity: 0.9,
+      fontWeight: "400"
+    }}>
+      Hover to open detailed analytics
+    </div>
+  </div>
+  </>  
 )}
+
+
+
+
 
     {/* === IFC SCENARIO UI - DISPLAY ELEMENT STATS === */}
     {currentScenario === "ifc" && (
