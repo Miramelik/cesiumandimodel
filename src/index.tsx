@@ -14,6 +14,13 @@ import { Auth } from "./Auth";
 import * as serviceWorker from "./serviceWorker";
 import { Ion } from "cesium";
 
+
+console.log('Environment check:', {
+     hasClientId: !!process.env.REACT_APP_IMJS_AUTH_CLIENT_CLIENT_ID,
+     hasIonToken: !!process.env.REACT_APP_ION_TOKEN,
+     hasITwinId: !!process.env.REACT_APP_IMJS_ITWIN_ID
+   });
+
 if (!process.env.REACT_APP_IMJS_AUTH_CLIENT_CLIENT_ID) {
   throw new Error(
     "Please add a valid OIDC client id to the .env file and restart the application. See the README for more information."
