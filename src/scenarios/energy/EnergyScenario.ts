@@ -81,6 +81,31 @@ export async function initEnergyScenario(viewer: Viewer): Promise<LoadedLayer[]>
       scheduleStatsUpdate();
     };
 
+    // Add diagnostic callback to inspect properties
+    let propertiesLogged = false;
+    const diagnosticCallback = (tile: any) => {
+      if (!propertiesLogged && tile.content && tile.content.featuresLength > 0) {
+        const feature = tile.content.getFeature(0);
+        const propertyIds = feature.getPropertyIds ? feature.getPropertyIds() : [];
+        console.log("[EnergyScenario] 🔍 Available properties in tileset:", propertyIds);
+        
+        // Log first feature's property values
+        const props: any = {};
+        propertyIds.forEach((id: string) => {
+          props[id] = feature.getProperty(id);
+        });
+        console.log("[EnergyScenario] 📊 First feature properties:", props);
+        propertiesLogged = true;
+      }
+    };
+
+    tileVisibleCallback = (tile: any) => {
+      diagnosticCallback(tile);
+      collectBuildingFeatures(tile);
+      scheduleStatsUpdate();
+    };
+
+
     buildingsTileset.tileVisible.addEventListener(tileVisibleCallback);
     
     await new Promise(resolve => setTimeout(resolve, 2000));
@@ -111,49 +136,145 @@ function collectBuildingFeatures(tile: any) {
 
     const height = Number(feature.getProperty("bldg:measuredheight")) || 0;
     const storeys = Number(feature.getProperty("bldg:storeysaboveground")) || 1;
-    const roofType = feature.getProperty("bldg:rooftype");
+    let roofType = feature.getProperty("bldg:rooftype");
+
+    if (roofType !== undefined) {
+      roofType = Number(roofType);
+    } else {
+      roofType = 2000; // default to non-flat
+    }
+
+
+
     const functionCode = feature.getProperty("bldg:function") || "other";
 
 
-    // Try to get footprint from GML, if not available calculate from bounding box
-    let footprint = Number(feature.getProperty("Grundflaeche"));
+    // // Try to get footprint from GML, if not available calculate from bounding box
+    // let footprint = Number(feature.getProperty("Grundflaeche")) || 0;
 
-    if (!footprint || footprint === 0) {
-      // Fallback: estimate footprint from latitude/longitude bounds
-      // This is an approximation - assumes building is roughly square
-      const lat = feature.getProperty("Latitude");
-      const lon = feature.getProperty("Longitude");
+    // if (footprint === 0 && height > 0 && storeys > 0) {
+    //   // Fallback: estimate footprint from latitude/longitude bounds
+    //   // This is an approximation - assumes building is roughly square
+    //   const lat = feature.getProperty("Latitude");
+    //   const lon = feature.getProperty("Longitude");
       
-      if (lat && lon && storeys > 0) {
-        // Estimate: typical floor area per storey (assume 100m² per floor as default)
+    //   if (lat && lon) {
+    //     // Estimate: typical floor area per storey (assume 100m² per floor as default)
+    //     footprint = storeys * 100;
+    //   } else {
+    //     // Last resort: use default based on storeys
+    //     const estimatedStoreys = Math.max(1, Math.round(height / 3.5));
+    //     footprint = estimatedStoreys * 80;
+    //   }
+    // }
+
+    // Try multiple property names for footprint/surface area
+    let footprint = 0;
+    const possibleFootprintProps = [
+      "Grundflaeche",
+      "grundflaeche", 
+      "footprint",
+      "base_area",
+      "floor_area",
+      "area"
+    ];
+    
+    for (const propName of possibleFootprintProps) {
+      const value = feature.getProperty(propName);
+      if (value && Number(value) > 0) {
+        footprint = Number(value);
+        if (buildingFeatures.size <= 3) {
+          console.log(`[EnergyScenario] Found footprint in property '${propName}':`, footprint);
+        }
+        break;
+      }
+    }
+
+    // If no footprint property found, estimate from height and storeys
+    if (footprint === 0) {
+      if (height > 0 && storeys > 0) {
+        // Estimate: typical floor area per storey
+        // Residential: ~80-120 m² per floor
+        // Office: ~100-150 m² per floor
+        // Use 100 m² as average
         footprint = storeys * 100;
+        
+        if (buildingFeatures.size <= 3) {
+          console.log(`[EnergyScenario] Estimated footprint from storeys:`, footprint);
+        }
+      } else if (height > 0) {
+        // Estimate storeys from height (assuming 3.5m per floor)
+        const estimatedStoreys = Math.max(1, Math.round(height / 3.5));
+        footprint = estimatedStoreys * 100;
+        
+        if (buildingFeatures.size <= 3) {
+          console.log(`[EnergyScenario] Estimated footprint from height:`, footprint);
+        }
       } else {
-        // Last resort: use default based on storeys
-        footprint = Math.max(50, storeys * 30);
+        // Last resort: use a default value
+        footprint = 100; // 100 m² default
+        
+        if (buildingFeatures.size <= 3) {
+          console.log(`[EnergyScenario] Using default footprint:`, footprint);
+        }
       }
     }
 
      // Calculate volume: height × footprint
-    const volume = height * footprint;
+    // Only calculate if we have valid data
+    const volume = (height > 0 && footprint > 0) ? height * footprint : 0;
 
-    // Calculate surface area: footprint + (perimeter × height)
-    // Assuming roughly square building: perimeter ≈ 4 × √footprint
-    const perimeter = 4 * Math.sqrt(footprint);
-    const surface = footprint + (perimeter * height);
+      // Calculate total surface area: 
+    // Surface = footprint (roof) + footprint (base) + 4 walls
+    // For walls: assuming roughly square building
+    // Wall area = perimeter × height
+    // Perimeter ≈ 4 × √footprint (for square building)
+    let surface = 0;
+    if (footprint > 0 && height > 0) {
+      const perimeter = 4 * Math.sqrt(footprint);
+      const wallArea = perimeter * height;
+      surface = (2 * footprint) + wallArea; // roof + base + walls
+    } else if (footprint > 0) {
+      surface = footprint; // at least the footprint
+    }
+
+    // Calculate energy demand: volume × 15 kWh/m³/year
+    const energyDemand = volume * 15;
 
     // Store calculated values and set them as feature properties for Cesium styling
     feature.setProperty("calculated_volume", volume);
     feature.setProperty("calculated_surface", surface);
-    feature.setProperty("calculated_energy", volume * 15);
+    feature.setProperty("calculated_energy", energyDemand);
     
     buildingFeatures.set(String(gmlId), {
        gmlId, height, storeys, roofType, functionCode, footprint, volume, surface,
     });
+
+     // Log first few buildings for debugging
+    if (buildingFeatures.size <= 5) {
+      console.log(`[EnergyScenario] Building ${gmlId}:`, {
+        height: height.toFixed(2),
+        storeys,
+        roofType,
+        footprint: footprint.toFixed(2),
+        volume: volume.toFixed(2),
+        surface: surface.toFixed(2),
+        energyDemand: energyDemand.toFixed(2),
+      });
+    }
+  }
+
+  // Log summary every 100 buildings
+  if (buildingFeatures.size % 100 === 0) {
+    console.log(`[EnergyScenario] Progress: ${buildingFeatures.size} buildings collected`);
   }
 }
 
 function computeEnergyMetrics() {
-  if (buildingFeatures.size === 0) return;
+  if (buildingFeatures.size === 0) {
+    console.warn("[EnergyScenario] No building features collected yet");
+    return;
+  }
 
   let totalVolume = 0, totalSurface = 0, flatRoofCount = 0;
   let totalHeight = 0, totalStoreys = 0;
@@ -164,7 +285,10 @@ function computeEnergyMetrics() {
     totalHeight += data.height;
     totalStoreys += data.storeys;
     
-    if (data.roofType === 1000 || data.roofType === "1000") flatRoofCount++;
+    // Check if roof is flat (roofType === 1000)
+    if (data.roofType === 1000 || data.roofType === "1000" || String(data.roofType) === "1000") {
+      flatRoofCount++;
+    }
   }
 
   const totalBuildings = buildingFeatures.size;
@@ -188,7 +312,13 @@ function computeEnergyMetrics() {
     avgStoreys: Number(avgStoreys.toFixed(1)),
   };
 
-  console.log("[EnergyScenario] Metrics:", metricsCache);
+  console.log("[EnergyScenario] ✅ Metrics computed:", {
+    buildings: totalBuildings,
+    volume: `${(totalVolume / 1000000).toFixed(2)}M m³`,
+    surface: `${(totalSurface / 1000).toFixed(1)}K m²`,
+    flatRoofs: `${flatRoofCount} (${flatRoofPercent.toFixed(1)}%)`,
+    energy: `${(totalEnergyDemand / 1000000).toFixed(2)}M kWh/year`,
+  });
 }
 
 function scheduleStatsUpdate() {
@@ -224,8 +354,9 @@ export function applyEnergyVisualization(
     case "solar":
       buildingsTileset.style = new Cesium3DTileStyle({
         color: {
-          conditions: [
+           conditions: [
             ["${feature['bldg:rooftype']} === 1000", "color('gold', 0.9)"],
+            ["${feature['bldg:rooftype']} === '1000'", "color('gold', 0.9)"],
             ["true", "color('gray', 0.3)"],
           ],
         },

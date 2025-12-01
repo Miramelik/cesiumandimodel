@@ -473,8 +473,56 @@ export const CesiumViewer: React.FC <CesiumViewerProps> = ({
             const storeys = Number(feature.getProperty('bldg:storeysaboveground')) || 0;
             const roofType = feature.getProperty('bldg:rooftype');
             const functionCode = feature.getProperty('bldg:function') || 'other';
-            const volume = Number(feature.getProperty('calculated_volume')) || 0;
-            const surface = Number(feature.getProperty('Grundflaeche')) || 0;
+
+
+            let volume = Number(feature.getProperty('calculated_volume')) || 0;
+            let surface = Number(feature.getProperty('Grundflaeche')) || 0;
+
+            // If calculated properties don't exist yet, calculate them here
+            if (volume === 0 || surface === 0) {
+              // Try to get footprint
+              let footprint = 0;
+              const possibleFootprintProps = [
+                "Grundflaeche",
+                "grundflaeche", 
+                "footprint",
+                "base_area",
+                "floor_area",
+                "area"
+              ];
+              
+              for (const propName of possibleFootprintProps) {
+                const value = feature.getProperty(propName);
+                if (value && Number(value) > 0) {
+                  footprint = Number(value);
+                  break;
+                }
+              }
+              
+              // Estimate footprint if not found
+              if (footprint === 0) {
+                if (height > 0 && storeys > 0) {
+                  footprint = storeys * 100;
+                } else if (height > 0) {
+                  const estimatedStoreys = Math.max(1, Math.round(height / 3.5));
+                  footprint = estimatedStoreys * 100;
+                } else {
+                  footprint = 100; // default
+                }
+              }
+              
+              // Calculate volume
+              volume = (height > 0 && footprint > 0) ? height * footprint : 0;
+              
+              // Calculate surface (roof + base + walls)
+              if (footprint > 0 && height > 0) {
+                const perimeter = 4 * Math.sqrt(footprint);
+                const wallArea = perimeter * height;
+                surface = (2 * footprint) + wallArea;
+              } else if (footprint > 0) {
+                surface = footprint;
+              }
+            }
             
             // Map function codes
             let mappedFunction = '39001_1000'; // Default: Other

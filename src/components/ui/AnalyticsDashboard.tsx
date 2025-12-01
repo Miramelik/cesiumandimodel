@@ -55,26 +55,54 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
   useEffect(() => {
     if (buildingsData.length > 0) {
+      console.log('📊 [Dashboard] Calculating metrics from', buildingsData.length, 'buildings');
+      console.log('📊 [Dashboard] Sample building:', buildingsData[0]);
       calculateMetrics();
     }
   }, [buildingsData]);
 
   const calculateMetrics = () => {
     const totalBuildings = buildingsData.length;
-    const totalVolume = buildingsData.reduce((sum, b) => sum + b.volume, 0);
-    const totalSurface = buildingsData.reduce((sum, b) => sum + b.surface, 0);
-    const flatRoofs = buildingsData.filter((b) => b.rooftype === 1000).length;
-    const totalEnergyDemand = buildingsData.reduce(
-      (sum, b) => sum + b.volume * 15,
-      0
-    );
-    const annualCost = totalEnergyDemand * 0.4;
+    
+    // Calculate totals with proper filtering for valid data
+    const totalVolume = buildingsData.reduce((sum, b) => {
+      const vol = Number(b.volume) || 0;
+      return sum + vol;
+    }, 0);
+    
+    const totalSurface = buildingsData.reduce((sum, b) => {
+      const surf = Number(b.surface) || 0;
+      return sum + surf;
+    }, 0);
+    
+    // Count flat roofs (rooftype === 1000)
+    const flatRoofs = buildingsData.filter((b) => {
+      const roofType = Number(b.rooftype);
+      return roofType === 1000;
+    }).length;
+    
+    // Calculate energy demand (volume * 15 kWh/year)
+    const totalEnergyDemand = totalVolume * 15; // Changed to match EnergyScenario
+    
+    const annualCost = totalEnergyDemand * 0.40; // Changed to 0.40 to match EnergyScenario
+    const co2Emissions = totalEnergyDemand * 0.31; // Added to match EnergyScenario
+    const solarPotential = totalBuildings > 0 ? (flatRoofs / totalBuildings) * 100 : 0;
+
+    console.log('📊 [Dashboard] Metrics calculated:', {
+      totalBuildings,
+      totalVolume: `${(totalVolume / 1000000).toFixed(2)}M m³`,
+      totalSurface: `${(totalSurface / 1000).toFixed(1)}K m²`,
+      flatRoofs: `${flatRoofs} (${solarPotential.toFixed(1)}%)`,
+      totalEnergyDemand: `${(totalEnergyDemand / 1000000).toFixed(2)}M kWh`,
+      annualCost: `€${(annualCost / 1000000).toFixed(2)}M`,
+      co2Emissions: `${(co2Emissions / 1000000).toFixed(2)}M kg`,
+    });
 
     setMetrics({
       totalBuildings,
       totalVolume,
       totalSurface,
-      solarPotential: totalBuildings > 0 ? (flatRoofs / totalBuildings) * 100 : 0,
+      solarPotential,
       energyDemand: totalEnergyDemand,
       annualCost,
     });
@@ -134,8 +162,14 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     datasets: [
       {
         data: [
-          buildingsData.filter((b) => b.rooftype === 1000).length,
-          buildingsData.filter((b) => b.rooftype !== 1000).length,
+          buildingsData.filter((b) => {
+            const roofType = Number(b.rooftype);
+            return roofType === 1000;
+          }).length,
+          buildingsData.filter((b) => {
+            const roofType = Number(b.rooftype);
+            return roofType !== 1000;
+          }).length,
         ],
         backgroundColor: [
           'rgba(255, 215, 0, 0.8)',
@@ -205,66 +239,39 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
         </div>
 
         <div className="dashboard-content">
-          {/* Metrics Summary */}
-          <div className="metrics-grid">
-            <div className="metric-card">
-              <div className="metric-label">TOTAL BUILDINGS</div>
-              <div className="metric-value">{metrics.totalBuildings.toLocaleString()}</div>
+          {buildingsData.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+              <p>Loading building data...</p>
+              <p style={{ fontSize: '0.9em', marginTop: '10px' }}>
+                Please wait while we extract features from the tileset
+              </p>
             </div>
-            <div className="metric-card">
-              <div className="metric-label">TOTAL VOLUME</div>
-              <div className="metric-value">
-                {(metrics.totalVolume / 1000).toFixed(1)}K m³
-              </div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-label">TOTAL SURFACE</div>
-              <div className="metric-value">
-                {(metrics.totalSurface / 1000).toFixed(1)}K m²
-              </div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-label">SOLAR POTENTIAL</div>
-              <div className="metric-value">
-                {metrics.solarPotential.toFixed(1)}%
-              </div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-label">ENERGY DEMAND</div>
-              <div className="metric-value">
-                {(metrics.energyDemand / 1000000).toFixed(2)}M kWh
-              </div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-label">ANNUAL COST</div>
-              <div className="metric-value">
-                €{(metrics.annualCost / 1000000).toFixed(2)}M
-              </div>
-            </div>
-          </div>
+          ) : (
+            <>
+               {/* Charts */}
+              <div className="charts-section">
+                <div className="chart-container">
+                  <h3>Height Distribution</h3>
+                  <Bar data={heightData} options={chartOptions} />
+                </div>
 
-          {/* Charts */}
-          <div className="charts-section">
-            <div className="chart-container">
-              <h3>Height Distribution</h3>
-              <Bar data={heightData} options={chartOptions} />
-            </div>
+                <div className="chart-container">
+                  <h3>Energy Demand Threshold</h3>
+                  <Bar data={energyThresholdData} options={chartOptions} />
+                </div>
 
-            <div className="chart-container">
-              <h3>Energy Demand Threshold</h3>
-              <Bar data={energyThresholdData} options={chartOptions} />
-            </div>
+                <div className="chart-container">
+                  <h3>Roof Type Analysis</h3>
+                  <Doughnut data={roofTypeData} options={pieChartOptions} />
+                </div>
 
-            <div className="chart-container">
-              <h3>Roof Type Analysis</h3>
-              <Doughnut data={roofTypeData} options={pieChartOptions} />
-            </div>
-
-            <div className="chart-container">
-              <h3>Building Functions</h3>
-              <Pie data={functionData} options={pieChartOptions} />
-            </div>
-          </div>
+                <div className="chart-container">
+                  <h3>Building Functions</h3>
+                  <Pie data={functionData} options={pieChartOptions} />
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
