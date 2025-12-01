@@ -23,10 +23,10 @@ import { IFCElementStats } from "./scenarios/ifc/IFCElementQuery";
    * ------------------------------------------------------*/
 
 const App: React.FC = () => {
-  const [iModelId, setIModelId] = useState(process.env.IMJS_IMODEL_ID);
-  const [iTwinId, setITwinId] = useState(process.env.IMJS_ITWIN_ID);
+  const [iModelId, setIModelId] = useState(process.env.REACT_APP_IMJS_IMODEL_ID);
+  const [iTwinId, setITwinId] = useState(process.env.REACT_APP_IMJS_ITWIN_ID);
   const [changesetId, setChangesetId] = useState(
-    process.env.IMJS_AUTH_CLIENT_CHANGESET_ID
+    process.env.REACT_APP_IMJS_AUTH_CLIENT_CHANGESET_ID
   );
   const [currentScenario, setCurrentScenario] = useState<string>("bus");
   const [ifcStats, setIfcStats] = useState <IFCElementStats | null> (null);

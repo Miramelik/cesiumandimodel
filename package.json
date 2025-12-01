@@ -59,7 +59,8 @@
   "scripts": {
   "start": "react-scripts --max_old_space_size=4096 start",
   "build": "DISABLE_ESLINT_PLUGIN=true react-scripts --max_old_space_size=4096 build && npm run copy-cesium",
-  "copy-cesium": "cp -r node_modules/cesium/Build/Cesium/* build/cesium/",
+ "postinstall": "npm run cesium-copy",
+  "cesium-copy": "mkdir -p public/Cesium && cp -R node_modules/cesium/Build/Cesium/* public/Cesium/",
   "test": "react-scripts --max_old_space_size=4096 test",
   "eject": "react-scripts eject"
 },
