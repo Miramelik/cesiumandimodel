@@ -44,9 +44,11 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
   -------------------------------------------- */
   bus: {
     id: "bus",
-    title: "Bus Stops",
+    title: "Accessibility Analysis",
     description: "This Scenario is about identifying which buildings are in the vicinity of different buffer zones around bus stops.",
-    layers: [],
+    layers: [
+      
+    ],
     options: {
       enablePicking: true,
       enableDashboard: true,
@@ -61,7 +63,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
   -------------------------------------------- */
   noise: {
     id: "noise",
-    title: "Noise Levels",
+    title: "Noise Analysis",
     description: "This use case is about identifying which buildings are in the high noise zones around major roads.",
 
     layers: [],
@@ -80,7 +82,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
   -------------------------------------------- */
   energy: {
     id: "energy",
-    title: "Energy Consumption",
+    title: "Energy Analysis",
     description: "Analyze building energy demand based on volume, visualize solar potential for flat roofs, and estimate CO₂ emissions and annual costs. Supports multiple visualization modes including height, storeys, function, and energy demand.",
 
     layers: [],
@@ -99,7 +101,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
   -------------------------------------------- */
   ifc: {
     id: "ifc",
-    title: "IFC Models",
+    title: "Detail BIM Model",
     description: "Full geospatial overlay automation pipeline with land use planning overlay.",
 
     layers: [

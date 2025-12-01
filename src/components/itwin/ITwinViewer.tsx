@@ -119,7 +119,7 @@ export const ItwinViewer: React.FC<ItwinViewerProps> =({
     IModelApp.viewManager.onViewOpen.addOnce((vp: ScreenViewport) => {
       console.log(`View opened: ${vp.iModel.name}`);
       Visualization.toggleHouseExterior(vp, false);
-      Visualization.changeBackground(vp, "lightblue");
+      //Visualization.changeBackground(vp, "lightblue");
   });
   }, []);
 

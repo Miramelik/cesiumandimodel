@@ -20,7 +20,7 @@ export const ScenarioToolbar: React.FC<Props> = ({
         width: "240px",
       }}
     >
-      <h4 style={{ marginTop: 0, marginBottom: "5px" }}>Scenarios</h4>
+      <h4 style={{ marginTop: 0, marginBottom: "5px" }}>GeoSpatial Overlays</h4>
 
        {Object.values(SCENARIOS).map((scenario) => (
         <button
