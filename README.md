@@ -1,90 +1,294 @@
-# Getting Started with the iTwin Viewer Create React App Template
+# Geospatial Data Pipeline and BIM Integration Platform
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## Project Overview
 
-## Environment Variables
+This project implements a comprehensive web-based platform that integrates Building Information Modeling (BIM) with 3D geospatial data for multi-scenario urban analysis. The system combines Bentley's iTwin platform for detailed BIM visualization with Cesium for urban-scale 3D rendering, enabling simultaneous analysis of building accessibility, noise exposure, energy performance, and detailed IFC element inspection.
 
-Prior to running the app, you will need to add OIDC client configuration to the variables in the .env file:
+## Architecture
 
+### Dual-Viewer System
+- **iTwin Viewer**: High-fidelity BIM visualization for detailed building element analysis
+- **Cesium Viewer**: Urban-scale 3D geospatial visualization with city-wide context
+
+### Analysis Scenarios
+1. **Accessibility Analysis**: Identifies buildings within configurable buffer zones around public transit stops
+2. **Noise Analysis**: Classifies buildings by exposure to traffic noise zones
+3. **Energy Analysis**: Calculates building energy demand, solar potential, and CO₂ emissions
+4. **IFC Analysis**: Provides detailed element-level inspection of BIM models with land use overlay
+
+## Technology Stack
+
+### Frontend Framework
+- **React 18.3.1** with TypeScript
+- **@itwin/web-viewer-react** for BIM visualization
+- **Cesium 1.135.0** for 3D geospatial rendering
+- **Chart.js** for analytics dashboard
+
+### Geospatial Processing
+- **Turf.js 7.3.0** for client-side spatial analysis
+- **CityGML LoD2** models via Cesium Ion
+- **IFC** models via iTwin platform
+- **GeoJSON** for vector overlays
+- **WMS** for land use imagery
+
+## Installation
+
+### Prerequisites
+- Node.js (v16 or higher recommended)
+- npm package manager
+
+### Setup Steps
+
+1. **Clone the repository**
+```bash
+git clone <repository-url>
+cd <project-directory>
 ```
+
+2. **Install dependencies**
+```bash
+npm install
+```
+
+3. **Configure environment variables**
+
+Create a `.env` file in the root directory:
+```dotenv
 # ---- Authorization Client Settings ----
-IMJS_AUTH_CLIENT_CLIENT_ID=""
-IMJS_AUTH_CLIENT_REDIRECT_URI=""
-IMJS_AUTH_CLIENT_LOGOUT_URI=""
-IMJS_AUTH_CLIENT_SCOPES=""
+REACT_APP_IMJS_AUTH_CLIENT_CLIENT_ID=spa-GkjjC3HLRrv1Dh4P9Zr5IPN5m
+REACT_APP_IMJS_AUTH_CLIENT_REDIRECT_URI=http://localhost:3000/signin-callback
+REACT_APP_IMJS_AUTH_CLIENT_LOGOUT_URI=""
+REACT_APP_IMJS_AUTH_CLIENT_SCOPES="itwin-platform"
+REACT_APP_IMJS_AUTH_AUTHORITY="https://ims.bentley.com"
+
+# ---- iTwin Project Settings ----
+REACT_APP_IMJS_ITWIN_ID=2dc470ac-4f6d-417c-ab8e-f1fe2318ef0c
+REACT_APP_IMJS_IMODEL_ID=b8f8fe5a-fdec-498d-ba68-6b7cde90233b
+
+# ---- Cesium Ion Token ----
+REACT_APP_ION_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0M2M4MmM4NC1mOGYzLTRkY2ItYTgwNC0wODUzNjgxMTBhOTAiLCJpZCI6MzEzNzI3LCJpYXQiOjE3NTAzMjY1NTF9.pj5PoBiY1J-epGNebrCUaXdg89GH90ltUfaiVWtjp1M
+
+# ---- Advanced Settings ----
+SKIP_PREFLIGHT_CHECK=true
+USE_FAST_SASS=false
+USE_FULL_SOURCEMAP=true
+TRANSPILE_DEPS=false
+USING_NPM=true
 ```
 
-- You can generate a [test client](https://developer.bentley.com/tutorials/web-application-quick-start/#3-register-an-application) to get started.
-
-- Viewer expects the `itwin-platform` scope to be set.
-
-- The application will use the path of the redirect URI to handle the redirection, it must simply match what is defined in your client.
-
-- When you are ready to build a production application, [register here](https://developer.bentley.com/register/).
-
-You should also add a valid iTwinId and iModelId for your user in the this file:
-
-```
-# ---- Test ids ----
-IMJS_ITWIN_ID = ""
-IMJS_IMODEL_ID = ""
+4. **Copy Cesium assets**
+```bash
+npm run cesium-copy
 ```
 
-- For the IMJS_ITWIN_ID variable, you can use the id of one of your existing iTwins. You can obtain their ids via the [iTwin REST APIs](https://developer.bentley.com/apis/itwins/operations/get-itwin/).
+## Running the Application
 
-- For the IMJS_IMODEL_ID variable, use the id of an iModel that belongs to the iTwin that you specified in the IMJS_ITWIN_ID variable. You can obtain iModel ids via the [iModel REST APIs](https://developer.bentley.com/apis/imodels-v2/operations/get-imodel-details/).
+### Start Development Server
+```bash
+npm start
+```
 
-- Alternatively, you can [generate a test iModel](https://developer.bentley.com/tutorials/web-application-quick-start/#4-create-an-imodel) to get started without an existing iModel.
+The application will automatically open at `http://localhost:3000`
 
-- If at any time you wish to change the iModel that you are viewing, you can change the values of the iTwinId or iModelId query parameters in the url (i.e. localhost:3000?iTwinId=myNewITwinId&iModelId=myNewIModelId)
+### Build for Production
+```bash
+npm run build
+npm run postbuild
+```
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+### Spatial Analysis Capabilities
+- **Buffer Analysis**: Configurable radius (400-800m) around transit stops using Turf.js
+- **Point-in-Polygon Testing**: Building classification by noise zones
+- **Polygon Union Operations**: Merged coverage areas for accessibility analysis
 
-### `npm start`
+### Energy Modeling
+- **Energy Demand Calculation**: `volume × 15 kWh/m³/year`
+- **Cost Estimation**: `energy × €0.40/kWh`
+- **CO₂ Emissions**: `energy × 0.31 kg/kWh`
+- **Solar Potential**: Flat roof identification for PV installation
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+### Interactive Visualizations
+- Solar suitability highlighting
+- Building height classification
+- Storey count graduation
+- Building function categorization
+- Energy demand heat maps
+- Interactive analytics dashboard
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## Data Sources
 
-### `npm test`
+### 3D Models
+- **CityGML LoD2**: Cesium Ion Asset 4138907 (Munich buildings)
+- **IFC Models**: Via iTwin Platform (detailed building elements)
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Vector Data (GeoJSON)
+- Bus stops: `/public/busstops.geojson`
+- Noise zones: `/public/noise.geojson`
+- Railway networks: Cesium Ion 4088283
+- Road networks: Cesium Ion 4088295
 
-### `npm run build`
+### Raster Services
+- **Munich Land Use WMS**: `https://geoportal.muenchen.de/geoserver/plan/g_fnp/ows`
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Project Structure
+```
+src/
+├── components/
+│   ├── cesium/              # Cesium viewer components
+│   │   ├── CesiumViewer.tsx
+│   │   ├── CesiumLoader.ts
+│   │   └── TilesetComponent.ts
+│   ├── itwin/               # iTwin viewer components
+│   │   ├── ITwinViewer.tsx
+│   │   └── utils/
+│   └── ui/                  # User interface components
+│       └── AnalyticsDashboard.tsx
+├── scenarios/               # Analysis scenario modules
+│   ├── bus/                 # Accessibility analysis
+│   │   └── BusScenario.ts
+│   ├── noise/               # Noise exposure analysis
+│   │   └── NoiseScenario.ts
+│   ├── energy/              # Energy demand analysis
+│   │   └── EnergyScenario.ts
+│   ├── ifc/                 # IFC element inspection
+│   │   ├── IFCScenario.ts
+│   │   └── IFCElementQuery.ts
+│   ├── SCENARIOS.ts         # Scenario definitions
+│   └── ScenarioManager.ts   # Scenario orchestration
+├── App.tsx                  # Main application
+├── Auth.ts                  # Authentication handler
+└── index.tsx                # Entry point
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Usage Guide
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### Scenario Selection
+Click the scenario buttons in the top-right panel:
+- **Accessibility Analysis**: Bus stop buffer analysis
+- **Noise Analysis**: Traffic noise exposure classification
+- **Energy Analysis**: Building energy demand modeling
+- **Detail BIM Model**: IFC element inspection with land use overlay
 
-### `npm run eject`
+### Accessibility Analysis
+1. Select "Accessibility Analysis" scenario
+2. Toggle "3D Buildings" layer visibility
+3. Toggle "Bus Stops" layer visibility
+4. Toggle "Buffer" layer to create coverage zone
+5. Adjust buffer radius (400-800m) using slider
+6. View statistics: total buildings, inside/outside buffer, coverage percentage
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+### Energy Analysis
+1. Select "Energy Analysis" scenario
+2. Choose visualization mode from dropdown:
+   - Solar Suitability (flat roofs highlighted)
+   - Building Height (color-coded)
+   - Number of Storeys
+   - Building Function
+   - Energy Demand
+3. Hover over buildings to see detailed energy metrics
+4. Hover over "Analytics Dashboard" button to view comprehensive charts
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### IFC Model Inspection
+1. Select "Detail BIM Model" scenario
+2. Split-screen view appears: iTwin viewer (left) + Cesium viewer (right)
+3. Navigate IFC model in iTwin viewer for element details
+4. View urban context with land use overlay in Cesium viewer
+5. Check IFC statistics panel for element counts
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+## Performance Optimization
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+The application implements several performance strategies:
 
-## Notes
+- **Tile-based Processing**: Buildings processed incrementally as tiles load
+- **Throttled Updates**: Statistics recalculated maximum once per second
+- **Spatial Indexing**: Map data structures for O(1) feature lookup
+- **Lazy Loading**: Scenario data loaded only when activated
 
-If you are not using NPM, remove the `USING_NPM` env var from [.env](./.env)
+## Troubleshooting
 
-## Next Steps
+### Common Issues
 
-- [iTwin Viewer options](https://www.npmjs.com/package/@itwin/web-viewer-react)
+**1. "Client not initialized" Error**
+- Ensure `.env` file exists with correct `REACT_APP_IMJS_AUTH_CLIENT_CLIENT_ID`
+- Restart development server after .env changes
 
-- [Extending the iTwin Viewer](https://developer.bentley.com/tutorials/itwin-viewer-hello-world/)
+**2. Cesium Assets Not Loading**
+- Run `npm run cesium-copy` to copy assets to public folder
+- Check that `/public/Cesium` directory exists
 
-- [Using the iTwin Platform](https://developer.bentley.com/)
+**3. Buildings Not Visible**
+- Toggle layer visibility using checkboxes in Layers panel
+- Check that Cesium Ion token is valid in `.env`
 
-- [iTwin Developer Program](https://www.youtube.com/playlist?list=PL6YCKeNfXXd_dXq4u9vtSFfsP3OTVcL8N)
+**4. Authentication Redirect Loop**
+- Verify redirect URI matches exactly: `http://localhost:3000/signin-callback`
+- Clear browser cache and cookies
+- Check Bentley Developer Portal application settings
+
+**5. Buffer Not Creating**
+- Ensure Bus Stops layer is toggled on first
+- Check browser console for Turf.js errors
+- Verify `/public/busstops.geojson` file exists
+
+## Technical Details
+
+### Data Transformation Pipeline
+
+**Accessibility Analysis:**
+```typescript
+// 1. Buffer generation
+const buffered = turf.buffer(busStopsJson, radiusKm, {units: "kilometers"});
+
+// 2. Polygon union
+let unionPolygon = turf.union(featureCollection([poly1, poly2]));
+
+// 3. Spatial intersection
+const inside = turf.booleanIntersects(buildingBbox, bufferPolygon);
+
+// 4. Attribute enrichment
+feature.setProperty("is_near_busstop", inside);
+```
+
+**Energy Modeling:**
+```typescript
+// Geometric calculations
+const volume = height * footprint;
+const surface = (2 * footprint) + (perimeter * height);
+
+// Energy metrics
+const energyDemand = volume * 15; // kWh/m³/year
+const annualCost = energyDemand * 0.40; // €0.40/kWh
+const co2 = energyDemand * 0.31; // 0.31 kg CO₂/kWh
+```
+
+### State Management
+React hooks manage application state:
+- `useState` for scenario selection, layer visibility, statistics
+- `useCallback` for memoized event handlers
+- `useEffect` for side effects (data loading, cleanup)
+
+## Research Applications
+
+This platform demonstrates:
+- **Urban Planning**: Transit-oriented development analysis
+- **Environmental Assessment**: Noise pollution impact evaluation
+- **Energy Efficiency**: City-scale energy demand estimation
+- **BIM-GIS Integration**: Seamless connection between building and urban scales
+
+## License
+
+Copyright (c) Bentley Systems, Incorporated. All rights reserved.
+
+## Support
+
+- iTwin Platform Documentation: https://developer.bentley.com/
+- Cesium Documentation: https://cesium.com/learn/
+- Project Issues: [Create issue in repository]
+
+---
+
+**Development Server**: http://localhost:3000
+
+**Last Updated**: February 2026
